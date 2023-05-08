@@ -69,6 +69,9 @@ namespace EncryptionHelper {
     OWNCLOUDSYNC_EXPORT bool fileDecryption(const QByteArray &key, const QByteArray &iv,
                                QFile *input, QFile *output);
 
+    OWNCLOUDSYNC_EXPORT bool dataEncryption(const QByteArray &key, const QByteArray &iv, const QByteArray &input, QByteArray &output, QByteArray &returnTag);
+    OWNCLOUDSYNC_EXPORT bool dataDecryption(const QByteArray &key, const QByteArray &iv, const QByteArray &input, QByteArray &output);
+
 //
 // Simple classes for safe (RAII) handling of OpenSSL
 // data structures
@@ -129,31 +132,145 @@ public:
     QString _mnemonic;
     bool _newMnemonicGenerated = false;
 
+     class Bio
+    {
+    public:
+        Bio()
+            : _bio(BIO_new(BIO_s_mem()))
+        {
+        }
+
+        ~Bio()
+        {
+            BIO_free_all(_bio);
+        }
+
+        operator BIO *()
+        {
+            return _bio;
+        }
+
+    private:
+        Q_DISABLE_COPY(Bio)
+
+        BIO *_bio;
+    };
+
+    class PKeyCtx
+    {
+    public:
+        explicit PKeyCtx(int id, ENGINE *e = nullptr)
+            : _ctx(EVP_PKEY_CTX_new_id(id, e))
+        {
+        }
+
+        ~PKeyCtx()
+        {
+            EVP_PKEY_CTX_free(_ctx);
+        }
+
+        // The move constructor is needed for pre-C++17 where
+        // return-value optimization (RVO) is not obligatory
+        // and we have a `forKey` static function that returns
+        // an instance of this class
+        PKeyCtx(PKeyCtx &&other)
+        {
+            std::swap(_ctx, other._ctx);
+        }
+
+        PKeyCtx &operator=(PKeyCtx &&other) = delete;
+
+        static PKeyCtx forKey(EVP_PKEY *pkey, ENGINE *e = nullptr)
+        {
+            PKeyCtx ctx;
+            ctx._ctx = EVP_PKEY_CTX_new(pkey, e);
+            return ctx;
+        }
+
+        operator EVP_PKEY_CTX *()
+        {
+            return _ctx;
+        }
+
+    private:
+        Q_DISABLE_COPY(PKeyCtx)
+
+        PKeyCtx() = default;
+
+        EVP_PKEY_CTX *_ctx = nullptr;
+    };
+
+    class PKey
+    {
+    public:
+        ~PKey();
+
+        // The move constructor is needed for pre-C++17 where
+        // return-value optimization (RVO) is not obligatory
+        // and we have a static functions that return
+        // an instance of this class
+        PKey(PKey &&other);
+
+        PKey &operator=(PKey &&other) = delete;
+
+        static PKey readPublicKey(Bio &bio);
+
+        static PKey readPrivateKey(Bio &bio);
+
+        static PKey generate(PKeyCtx &ctx);
+
+        operator EVP_PKEY *()
+        {
+            return _pkey;
+        }
+
+        operator EVP_PKEY *() const
+        {
+            return _pkey;
+        }
+
+    private:
+        Q_DISABLE_COPY(PKey)
+
+        PKey() = default;
+
+        EVP_PKEY *_pkey = nullptr;
+    };
+
 signals:
     void initializationFinished(bool isNewMnemonicGenerated = false);
     void sensitiveDataForgotten();
     void privateKeyDeleted();
     void certificateDeleted();
     void mnemonicDeleted();
-    void publicKeyDeleted();
+    void certificatesFetchedFromServer(const QHash<QString, QSslCertificate> &results);
+    void certificateFetchedFromKeychain(QSslCertificate certificate);
+    void certificateFetchedFromServer(QSslCertificate certificate);
+    void certificateWriteComplete(QSslCertificate certificate);
+
+public:
+    [[nodiscard]] QByteArray generateSignatureCMS(const QByteArray &data) const;
+    [[nodiscard]] bool verifySignatureCMS(const QByteArray &cmsContent, const QByteArray &data) const;
 
 public slots:
     void initialize(const OCC::AccountPtr &account);
     void forgetSensitiveData(const OCC::AccountPtr &account);
+    void getUsersPublicKeyFromServer(const AccountPtr &account, const QStringList &userIds);
+    void writeCertificate(const AccountPtr &account, const QString &userId, const QSslCertificate certificate);
+    void fetchFromKeyChain(const AccountPtr &account, const QString &userId);
 
 private slots:
     void generateKeyPair(const OCC::AccountPtr &account);
     void encryptPrivateKey(const OCC::AccountPtr &account);
 
-    void publicCertificateFetched(QKeychain::Job *incoming);
     void publicKeyFetched(QKeychain::Job *incoming);
+    void publicKeyFetchedForUserId(QKeychain::Job *incoming);
     void privateKeyFetched(QKeychain::Job *incoming);
     void mnemonicKeyFetched(QKeychain::Job *incoming);
 
     void handlePrivateKeyDeleted(const QKeychain::Job* const incoming);
     void handleCertificateDeleted(const QKeychain::Job* const incoming);
     void handleMnemonicDeleted(const QKeychain::Job* const incoming);
-    void handlePublicKeyDeleted(const QKeychain::Job* const incoming);
     void checkAllSensitiveDataDeleted();
 
     void getPrivateKeyFromServer(const OCC::AccountPtr &account);
@@ -161,129 +278,20 @@ private slots:
     void fetchAndValidatePublicKeyFromServer(const OCC::AccountPtr &account);
     void decryptPrivateKey(const OCC::AccountPtr &account, const QByteArray &key);
 
-    void fetchCertificateFromKeyChain(const OCC::AccountPtr &account);
-    void fetchPublicKeyFromKeyChain(const OCC::AccountPtr &account);
+    void fetchFromKeyChain(const OCC::AccountPtr &account);
     void writePrivateKey(const OCC::AccountPtr &account);
     void writeCertificate(const OCC::AccountPtr &account);
+    void writeMnemonic(const OCC::AccountPtr &account);
 
 private:
-    void generateMnemonic();
-
-    [[nodiscard]] std::pair<QByteArray, PKey> generateCSR(const AccountPtr &account,
-                                                          PKey keyPair,
-                                                          PKey privateKey);
-
-    void sendSignRequestCSR(const AccountPtr &account,
-                            PKey keyPair,
-                            const QByteArray &csrContent);
-
-    void writeKeyPair(const AccountPtr &account,
-                      PKey keyPair,
-                      const QByteArray &csrContent);
-
-    template <typename L>
-    void writeMnemonic(OCC::AccountPtr account,
-                       L nextCall);
-
-    void checkServerHasSavedKeys(const AccountPtr &account);
-
-    template <typename SUCCESS_CALLBACK, typename ERROR_CALLBACK>
-    void checkUserPublicKeyOnServer(const OCC::AccountPtr &account,
-                                    SUCCESS_CALLBACK nextCheck,
-                                    ERROR_CALLBACK onError);
-
-    template <typename SUCCESS_CALLBACK, typename ERROR_CALLBACK>
-    void checkUserPrivateKeyOnServer(const OCC::AccountPtr &account,
-                                     SUCCESS_CALLBACK nextCheck,
-                                     ERROR_CALLBACK onError);
-
-    template <typename SUCCESS_CALLBACK, typename ERROR_CALLBACK>
-    void checkUserKeyOnServer(const QString &keyType,
-                              const OCC::AccountPtr &account,
-                              SUCCESS_CALLBACK nextCheck,
-                              ERROR_CALLBACK onError);
+    void generateCSR(const AccountPtr &account, PKey keyPair);
+    void sendSignRequestCSR(const AccountPtr &account, PKey keyPair, const QByteArray &csrContent);
 
     [[nodiscard]] bool checkPublicKeyValidity(const AccountPtr &account) const;
     [[nodiscard]] bool checkServerPublicKeyValidity(const QByteArray &serverPublicKeyString) const;
     [[nodiscard]] bool sensitiveDataRemaining() const;
 
-    void failedToInitialize(const AccountPtr &account);
-
     bool isInitialized = false;
 };
-
-/* Generates the Metadata for the folder */
-struct EncryptedFile {
-    QByteArray encryptionKey;
-    QByteArray mimetype;
-    QByteArray initializationVector;
-    QByteArray authenticationTag;
-    QString encryptedFilename;
-    QString originalFilename;
-};
-
-class OWNCLOUDSYNC_EXPORT FolderMetadata {
-public:
-    enum class RequiredMetadataVersion {
-        Version1,
-        Version1_2,
-    };
-
-    explicit FolderMetadata(AccountPtr account);
-
-    explicit FolderMetadata(AccountPtr account,
-                            RequiredMetadataVersion requiredMetadataVersion,
-                            const QByteArray& metadata,
-                            int statusCode = -1);
-
-    [[nodiscard]] QByteArray encryptedMetadata() const;
-    void addEncryptedFile(const EncryptedFile& f);
-    void removeEncryptedFile(const EncryptedFile& f);
-    void removeAllEncryptedFiles();
-    [[nodiscard]] QVector<EncryptedFile> files() const;
-    [[nodiscard]] bool isMetadataSetup() const;
-
-    [[nodiscard]] bool isFileDropPresent() const;
-
-    [[nodiscard]] bool encryptedMetadataNeedUpdate() const;
-
-    [[nodiscard]] bool moveFromFileDropToFiles();
-
-    [[nodiscard]] QJsonObject fileDrop() const;
-
-private:
-    /* Use std::string and std::vector internally on this class
-     * to ease the port to Nlohmann Json API
-     */
-    void setupEmptyMetadata();
-    void setupExistingMetadata(const QByteArray& metadata);
-
-    [[nodiscard]] QByteArray encryptData(const QByteArray &data) const;
-    [[nodiscard]] QByteArray decryptData(const QByteArray &data) const;
-    [[nodiscard]] QByteArray decryptDataUsingKey(const QByteArray &data,
-                                                 const QByteArray &key,
-                                                 const QByteArray &authenticationTag,
-                                                 const QByteArray &initializationVector) const;
-
-    [[nodiscard]] QByteArray encryptJsonObject(const QByteArray& obj, const QByteArray pass) const;
-    [[nodiscard]] QByteArray decryptJsonObject(const QByteArray& encryptedJsonBlob, const QByteArray& pass) const;
-
-    [[nodiscard]] bool checkMetadataKeyChecksum(const QByteArray &metadataKey, const QByteArray &metadataKeyChecksum) const;
-
-    [[nodiscard]] QByteArray computeMetadataKeyChecksum(const QByteArray &metadataKey) const;
-
-    QByteArray _metadataKey;
-
-    QVector<EncryptedFile> _files;
-    AccountPtr _account;
-    RequiredMetadataVersion _requiredMetadataVersion = RequiredMetadataVersion::Version1_2;
-    QVector<QPair<QString, QString>> _sharing;
-    QJsonObject _fileDrop;
-    // used by unit tests, must get assigned simultaneously with _fileDrop and not erased
-    QJsonObject _fileDropFromServer;
-    bool _isMetadataSetup = false;
-    bool _encryptedMetadataNeedUpdate = false;
-};
-
 } // namespace OCC
 #endif

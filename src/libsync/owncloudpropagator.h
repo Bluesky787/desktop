@@ -56,6 +56,7 @@ void blacklistUpdate(SyncJournalDb *journal, SyncFileItem &item);
 class SyncJournalDb;
 class OwncloudPropagator;
 class PropagatorCompositeJob;
+class FolderMetadata;
 
 /**
  * @brief the base class of propagator jobs
@@ -621,6 +622,11 @@ public:
 
     [[nodiscard]] bool isInBulkUploadBlackList(const QString &file) const;
 
+    [[nodiscard]] QSharedPointer<FolderMetadata> findTopLevelFolderMetadata(const QString &path) const;
+    [[nodiscard]] const QMap<QString, QSharedPointer<FolderMetadata>> &topLevelFolderMetadata() const;
+
+    void setTopLevelFolderMetadata(const QMap<QString, QSharedPointer<FolderMetadata>> &topLevelFolderMetadata);
+
 private slots:
 
     void abortTimeout()
@@ -682,6 +688,8 @@ private:
     bool _scheduleDelayedTasks = false;
 
     QSet<QString> &_bulkUploadBlackList;
+    
+    QMap<QString, QSharedPointer<FolderMetadata>> _topLevelFolderMetadata;
 
     static bool _allowDelayedUpload;
 };
