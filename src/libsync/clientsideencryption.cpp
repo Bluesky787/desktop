@@ -68,11 +68,7 @@ constexpr char e2e_private[] = "_e2e-private";
 constexpr char e2e_public[] = "_e2e-public";
 constexpr char e2e_mnemonic[] = "_e2e-mnemonic";
 
-constexpr auto metadataKeyJsonKey = "metadataKey";
-
 constexpr qint64 blockSize = 1024;
-
-constexpr auto metadataKeySize = 16;
 
 QList<QByteArray> oldCipherFormatSplit(const QByteArray &cipher)
 {
