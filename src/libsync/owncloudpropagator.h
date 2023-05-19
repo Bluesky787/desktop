@@ -446,6 +446,10 @@ public:
                               QString &removedDirectory,
                               QString &maybeConflictDirectory);
 
+    void processE2eeMetadataMigration(const SyncFileItemPtr &item,
+                                              QStack<QPair<QString, PropagateDirectory *>> &directories,
+                                              PropagateDirectory *const directoryPropagationJob);
+
     [[nodiscard]] const SyncOptions &syncOptions() const;
     void setSyncOptions(const SyncOptions &syncOptions);
 
@@ -693,7 +697,7 @@ private:
 
     static bool _allowDelayedUpload;
 
-    QSet<QString> _appendedMigrationJobs;
+    QSet<QString> _appendedMigrationJobPaths;
 };
 
 
