@@ -1067,9 +1067,8 @@ bool SyncJournalDb::listAllTopLevelE2eeFolders(const std::function<void(const Sy
 
     if (!checkConnect())
         return false;
-
     const auto query = _queryManager.get(PreparedSqlQueryManager::ListAllTopLevelE2eeFoldersQuery,
-                                         QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE isE2eEncrypted >= ?1 AND WHERE e2eMangledName IS NULL OR e2eMangledName = ' ' ORDER BY path||'/' ASC"),
+                                         QByteArrayLiteral(GET_FILE_RECORD_QUERY " WHERE isE2eEncrypted >= ?1 AND type == 2 ORDER BY path||'/' ASC"),
                                          _db);
     if (!query) {
         return false;
@@ -1088,6 +1087,11 @@ bool SyncJournalDb::listAllTopLevelE2eeFolders(const std::function<void(const Sy
 
         SyncJournalFileRecord rec;
         fillFileRecordFromGetQuery(rec, *query);
+
+        if (rec._type == ItemTypeSkip) {
+            continue;
+        }
+
         rowCallback(rec);
     }
 
