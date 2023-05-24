@@ -502,7 +502,7 @@ void SyncEngine::startSync()
             return;
         }
 
-        const auto e2EeLockedFolders = _journal->e2EeLockedFolders();
+        /*const auto e2EeLockedFolders = _journal->e2EeLockedFolders();
 
         if (!e2EeLockedFolders.isEmpty()) {
             for (const auto &e2EeLockedFolder : e2EeLockedFolders) {
@@ -512,7 +512,7 @@ void SyncEngine::startSync()
                 const auto unlockJob = new OCC::UnlockEncryptFolderApiJob(_account, folderId, folderToken, _journal, this);
                 unlockJob->start();
             }
-        }
+        }*/
     }
 
     if (s_anySyncRunning || _syncRunning) {
