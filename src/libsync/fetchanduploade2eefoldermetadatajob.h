@@ -58,10 +58,9 @@ private slots:
     void slotFolderLockedError(const QByteArray &folderId, int httpErrorCode);
     void slotLockFolder();
     void slotUnlockFolder();
-    void slotUploadMetadata(bool firstUpload);
+    void slotUploadMetadata();
     void slotUploadMetadataSuccess(const QByteArray &folderId);
     void slotUploadMetadataError(const QByteArray &folderId, int httpReturnCode);
-    void slotFolderUnlocked(const QByteArray &folderId, int httpStatus);
     void slotEmitUploadSuccess();
     void slotEmitUploadError();
 
@@ -83,6 +82,7 @@ private:
     QSharedPointer<FolderMetadata> _folderMetadata;
     bool _allowEmptyMetadata = false;
     bool _isUnlockRunning = false;
+    bool _isNewMetadataCreated = false;
 };
 
 }

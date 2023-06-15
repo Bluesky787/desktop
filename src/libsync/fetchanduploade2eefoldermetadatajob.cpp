@@ -64,6 +64,7 @@ void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
 
 void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata()
 {
+    slotLockFolder();
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotFetchFolderMetadata()
@@ -129,6 +130,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceivedError(const QByteA
     Q_UNUSED(folderId);
     if (_allowEmptyMetadata) {
         qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error Getting the encrypted metadata. Pretend we got empty metadata.";
+        _isNewMetadataCreated = true;
         slotMetadataReceived({}, httpReturnCode);
         return;
     }
@@ -139,8 +141,8 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceivedError(const QByteA
 void FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedSuccessfully(const QByteArray &folderId, const QByteArray &token)
 {
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Folder" << folderId << "Locked Successfully for Upload, Fetching Metadata";
-    // Should I use a mutex here?
     _folderToken = token;
+    slotUploadMetadata();
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError(const QByteArray &folderId, int httpErrorCode)
@@ -185,12 +187,12 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUnlockFolder()
     unlockJob->start();
 }
 
-void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadata(bool firstUpload)
+void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadata()
 {
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Metadata created, sending to the server.";
 
     const auto encryptedMetadata = _folderMetadata->encryptedMetadata();
-    if (firstUpload) {
+    if (_isNewMetadataCreated) {
         const auto job = new StoreMetaDataApiJob(_account, _folderId, _folderToken, encryptedMetadata);
         connect(job, &StoreMetaDataApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataSuccess);
         connect(job, &StoreMetaDataApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataError);
