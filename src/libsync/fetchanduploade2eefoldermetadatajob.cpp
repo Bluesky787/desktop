@@ -33,7 +33,7 @@ namespace OCC {
 
 FetchAndUploadE2eeFolderMetadataJob::FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
                                                                          const QString &folderPath,
-                                                                         SyncJournalDb *journalDb,
+                                                                         SyncJournalDb *const journalDb,
                                                                          const QString &currentPath,
                                                                          const QString &possibleRootPath,
                                                                          QObject *parent)
@@ -56,15 +56,50 @@ QSharedPointer<FolderMetadata> FetchAndUploadE2eeFolderMetadataJob::folderMetada
     return _folderMetadata;
 }
 
+const QByteArray FetchAndUploadE2eeFolderMetadataJob::folderId() const
+{
+    return _folderId;
+}
+
+const QByteArray FetchAndUploadE2eeFolderMetadataJob::folderToken() const
+{
+    return _folderToken;
+}
+
+const bool FetchAndUploadE2eeFolderMetadataJob::isUnlockRunning() const
+{
+    return _isUnlockRunning;
+}
+
+const bool FetchAndUploadE2eeFolderMetadataJob::isFolderLocked() const
+{
+    return _isFolderLocked;
+}
+
 void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
 {
     _allowEmptyMetadata = allowEmptyMetadata;
     slotFetchFolderEncryptedId();
 }
 
-void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata()
+void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata(bool keepLock)
 {
+    _keepLockedAfterUpdate = keepLock;
     slotLockFolder();
+}
+
+void FetchAndUploadE2eeFolderMetadataJob::unlockFolder(bool success)
+{
+    if (_folderToken.isEmpty()) {
+        emit folderUnlocked(_folderId, 200);
+        return;
+    }
+    if (success) {
+        connect(this, &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadSuccess);
+    } else {
+        connect(this, &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadError);
+    }
+    slotUnlockFolder();
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotFetchFolderMetadata()
@@ -142,6 +177,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedSuccessfully(const QBy
 {
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Folder" << folderId << "Locked Successfully for Upload, Fetching Metadata";
     _folderToken = token;
+    _isFolderLocked = true;
     slotUploadMetadata();
 }
 
@@ -175,7 +211,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUnlockFolder()
 
     connect(unlockJob, &UnlockEncryptFolderApiJob::success, [this](const QByteArray &folderId) {
         qDebug() << "Successfully Unlocked";
-        _folderToken = "";
+        _isFolderLocked = false;
         emit folderUnlocked(folderId, 200);
         _isUnlockRunning = false;
     });
@@ -190,6 +226,8 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUnlockFolder()
 void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadata()
 {
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Metadata created, sending to the server.";
+
+    _uploadSignalEmitted = false;
 
     const auto encryptedMetadata = _folderMetadata->encryptedMetadata();
     if (_isNewMetadataCreated) {
@@ -209,6 +247,10 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataSuccess(const QByteA
 {
     Q_UNUSED(folderId);
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Uploading of the metadata success.";
+    if (_keepLockedAfterUpdate) {
+        slotEmitUploadSuccess();
+        return;
+    }
     connect(this, &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadSuccess);
     slotUnlockFolder();
 }
@@ -223,7 +265,10 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataError(const QByteArr
 
 void FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadSuccess()
 {
-    emit uploadFinished(0);
+    if (!_uploadSignalEmitted) {
+        _uploadSignalEmitted = true;
+        emit uploadFinished(0);
+    }
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadError()

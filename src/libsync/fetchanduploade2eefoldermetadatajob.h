@@ -35,17 +35,24 @@ class OWNCLOUDSYNC_EXPORT FetchAndUploadE2eeFolderMetadataJob : public QObject
 public:
     explicit FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
                                                  const QString &folderPath,
-                                                 SyncJournalDb *journalDb,
+                                                 SyncJournalDb *const journalDb,
                                                  const QString &currentPath,
                                                  const QString &possibleRootPath,
                                                  QObject *parent = nullptr);
 
     void setFolderMetadata(const QSharedPointer<FolderMetadata> &folderMetadata);
-    QSharedPointer<FolderMetadata> folderMetadata() const;
+    [[nodiscard]] QSharedPointer<FolderMetadata> folderMetadata() const;
+
+    [[nodiscard]] const QByteArray folderId() const;
+    [[nodiscard]] const QByteArray folderToken() const;
+
+    [[nodiscard]] const bool isUnlockRunning() const;
+    [[nodiscard]] const bool isFolderLocked() const;
 
 public:
     void fetchMetadata(bool allowEmptyMetadata = false);
-    void uploadMetadata();
+    void uploadMetadata(bool keepLock = false);
+    void unlockFolder(bool success = true);
 
 private slots:
     void slotFetchFolderMetadata();
@@ -67,8 +74,6 @@ private slots:
 public: signals:
     void fetchFinished(int code, const QString &message = {});
     void uploadFinished(int code, const QString &message = {});
-
-private: signals:
     void folderUnlocked(const QByteArray &folderId, int httpStatus);
 
 private:
@@ -81,8 +86,11 @@ private:
     QByteArray _folderToken;
     QSharedPointer<FolderMetadata> _folderMetadata;
     bool _allowEmptyMetadata = false;
+    bool _isFolderLocked = false;
     bool _isUnlockRunning = false;
     bool _isNewMetadataCreated = false;
+    bool _keepLockedAfterUpdate = false;
+    bool _uploadSignalEmitted = false;
 };
 
 }
