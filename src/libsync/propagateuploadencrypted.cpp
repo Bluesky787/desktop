@@ -3,8 +3,8 @@
 #include "networkjobs.h"
 #include "clientsideencryption.h"
 #include "foldermetadata.h"
+#include "fetchanduploade2eefoldermetadatajob.h"
 #include "account.h"
-
 #include <QFileInfo>
 #include <QDir>
 #include <QUrl>
