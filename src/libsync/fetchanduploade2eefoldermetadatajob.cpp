@@ -61,6 +61,11 @@ const QByteArray FetchAndUploadE2eeFolderMetadataJob::folderId() const
     return _folderId;
 }
 
+void FetchAndUploadE2eeFolderMetadataJob::setFolderToken(const QByteArray &token)
+{
+    _folderToken = token;
+}
+
 const QByteArray FetchAndUploadE2eeFolderMetadataJob::folderToken() const
 {
     return _folderToken;
@@ -85,6 +90,10 @@ void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
 void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata(bool keepLock)
 {
     _keepLockedAfterUpdate = keepLock;
+    if (!_folderToken.isEmpty()) {
+        slotUploadMetadata();
+        return;
+    }
     slotLockFolder();
 }
 
@@ -252,7 +261,11 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataSuccess(const QByteA
         return;
     }
     connect(this, &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadSuccess);
-    slotUnlockFolder();
+    if (_isFolderLocked) {
+        slotUnlockFolder();
+    } else {
+        slotEmitUploadSuccess();
+    }
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataError(const QByteArray &folderId, int httpReturnCode)

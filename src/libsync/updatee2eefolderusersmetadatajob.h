@@ -14,15 +14,15 @@
 
 #pragma once
 
-
 #include "account.h"
+#include "fetchanduploade2eefoldermetadatajob.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderUsersMetadataJob
 #include "gui/sharemanager.h"
 #include "syncfileitem.h"
 #include "gui/sharee.h"
-
 #include <QHash>
 #include <QMutex>
 #include <QObject>
+#include <QScopedPointer>
 #include <QSslCertificate>
 #include <QString>
 
@@ -50,6 +50,7 @@ public:
                                         const QString &folderUserId = {},
                                         QSslCertificate certificate = QSslCertificate{},
                                         QObject *parent = nullptr);
+    ~UpdateE2eeFolderUsersMetadataJob() override = default;
 
 public:
     [[nodiscard]] QString path() const;
@@ -68,25 +69,17 @@ public slots:
     void setJubJobItems(const QHash<QString, SyncFileItemPtr> &subJobItems);
 
 private slots:
-    void slotCertificatesFetchedFromServer(const QHash<QString, QSslCertificate> &results);
-    void slotCertificateFetchedFromKeychain(const QSslCertificate certificate);
-    void slotCertificateReady();
-    void slotFetchFolderMetadata();
-    void slotFolderEncryptedIdReceived(const QStringList &list);
-    void slotFolderEncryptedIdError(QNetworkReply *reply);
-    void slotMetadataReceived(const QJsonDocument &json, int statusCode);
-    void slotMetadataError(const QByteArray &folderId, int httpReturnCode);
+    void slotStartE2eeMetadataJobs();
+    void slotFetchMetadataJobFinished(int statusCode, const QString &message);
     void slotScheduleSubJobs();
-    void slotFolderLockedSuccessfully(const QByteArray &folderId, const QByteArray &token);
-    void slotFolderLockedError(const QByteArray &folderId, int httpErrorCode);
-    void slotLockFolder();
-    void slotUnlockFolder();
-    void slotUpdateMetadataSuccess(const QByteArray &folderId);
-    void slotUpdateMetadataError(const QByteArray &folderId, int httpReturnCode);
+    void slotUnlockFolder(bool success);
+    void slotUpdateMetadataFinished(int code, const QString &message = {});
     void slotFolderUnlocked(const QByteArray &folderId, int httpStatus);
-    void slotUpdateFolderMetadata();
     void slotSubJobsFinished();
     void slotSubJobFinished(int code, const QString &message = {});
+    
+    void slotCertificatesFetchedFromServer(const QHash<QString, QSslCertificate> &results);
+    void slotCertificateFetchedFromKeychain(const QSslCertificate certificate);
 
 private: signals:
     void certificateReady();
@@ -110,6 +103,7 @@ private:
     UserData _userData;
     QHash<QString, SyncFileItemPtr> _subJobItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
     QMutex _subjobItemsMutex;
+    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

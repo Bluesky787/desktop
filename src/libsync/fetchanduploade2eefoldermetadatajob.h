@@ -44,6 +44,8 @@ public:
     [[nodiscard]] QSharedPointer<FolderMetadata> folderMetadata() const;
 
     [[nodiscard]] const QByteArray folderId() const;
+
+    void setFolderToken(const QByteArray &token);
     [[nodiscard]] const QByteArray folderToken() const;
 
     [[nodiscard]] const bool isUnlockRunning() const;
