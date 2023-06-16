@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "fetchanduploade2eefoldermetadatajob.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderMetadataJob
 #include "owncloudpropagator.h"
 #include "syncfileitem.h"
 
@@ -24,6 +25,8 @@ class QNetworkReply;
 namespace OCC {
 
 class FolderMetadata;
+
+class FetchAndUploadE2eeFolderMetadataJob;
 
 class OWNCLOUDSYNC_EXPORT UpdateE2eeFolderMetadataJob : public PropagatorJob
 {
@@ -38,15 +41,8 @@ public:
 
 private slots:
     void start();
-    void slotFolderEncryptedIdReceived(const QStringList &list);
-    void slotFolderEncryptedIdError(QNetworkReply *reply);
-    void slotFolderLockedSuccessfully(const QByteArray &fileId, const QByteArray &token);
-    void slotFolderLockedError(const QByteArray &fileId, int httpErrorCode);
-    void slotTryLock(const QByteArray &fileId);
-    void slotFolderEncryptedMetadataReceived(const QJsonDocument &json, int statusCode);
-    void slotFolderEncryptedMetadataError(const QByteArray &fileId, int httpReturnCode);
-    void slotUpdateMetadataSuccess(const QByteArray &fileId);
-    void slotUpdateMetadataError(const QByteArray &fileId, int httpReturnCode);
+    void slotFetchMetadataJobFinished(int httpReturnCode, const QString &message);
+    void slotUpdateMetadataFinished(int httpReturnCode, const QString &message);
     void unlockFolder(bool success);
 
 signals:
@@ -55,15 +51,8 @@ signals:
 private:
     SyncFileItemPtr _item;
     QString _encryptedRemotePath;
-    bool _currentLockingInProgress = false;
 
-    bool _isUnlockRunning = false;
-    bool _isFolderLocked = false;
-    
-    QByteArray _folderToken;
-    QByteArray _folderId;
-
-    QScopedPointer<FolderMetadata> _metadata;
+    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

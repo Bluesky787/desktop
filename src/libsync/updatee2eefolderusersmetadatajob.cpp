@@ -128,8 +128,9 @@ void UpdateE2eeFolderUsersMetadataJob::startUpdate()
         }
 
     }
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+            this, &UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished);
     _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
-
 }
 
 void UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished(int code, const QString &message)
