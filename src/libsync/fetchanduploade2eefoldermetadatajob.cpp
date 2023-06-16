@@ -148,7 +148,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotFolderEncryptedIdError(QNetworkRep
         emit fetchFinished(errorCode, errorMessage);
         return;
     }
-    emit fetchFinished(1, tr("Error fetching encrypted folder id."));
+    emit fetchFinished(-1, tr("Error fetching encrypted folder id."));
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocument &json, int statusCode)
@@ -161,11 +161,11 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocume
     connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, statusCode, metadata] {
         if (!metadata->isValid()) {
             qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error parsing or decrypting metadata.";
-            emit fetchFinished(1, tr("Error parsing or decrypting metadata."));
+            emit fetchFinished(-1, tr("Error parsing or decrypting metadata."));
             return;
         }
         _folderMetadata = metadata;
-        emit fetchFinished(0);
+        emit fetchFinished(200);
     });
 }
 

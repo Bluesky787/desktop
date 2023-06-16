@@ -97,7 +97,7 @@ void UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished(int statusCo
 {
     qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Metadata Received, Preparing it for the new file." << message;
 
-    if (statusCode != 0) {
+    if (statusCode != 200) {
         qCritical() << "fetch metadata finished with error" << statusCode << message;
         emit finished(SyncFileItem::Status::FatalError);
         return;
