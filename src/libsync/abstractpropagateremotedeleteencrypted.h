@@ -17,7 +17,7 @@
 #include <QObject>
 #include <QString>
 #include <QNetworkReply>
-
+#include "fetchanduploade2eefoldermetadatajob.h"
 #include "syncfileitem.h"
 
 namespace OCC {
@@ -46,28 +46,24 @@ protected:
     void storeFirstError(QNetworkReply::NetworkError err);
     void storeFirstErrorString(const QString &errString);
 
-    void startLsColJob(const QString &path);
-    void slotFolderEncryptedIdReceived(const QStringList &list);
-    void slotTryLock(const QByteArray &folderId);
-    void slotFolderLockedSuccessfully(const QByteArray &folderId, const QByteArray &token);
-    virtual void slotFolderUnLockedSuccessfully(const QByteArray &folderId);
-    virtual void slotFolderEncryptedMetadataReceived(const QJsonDocument &json, int statusCode) = 0;
+    void fetchMetadataForPath(const QString &path);
+    virtual void slotFolderUnLockFinished(const QByteArray &folderId, int statusCode);
+    virtual void slotFetchMetadataJobFinished(int statusCode, const QString &message) = 0;
+    virtual void slotUpdateMetadataJobFinished(int statusCode, const QString &message) = 0;
     void slotDeleteRemoteItemFinished();
 
     void deleteRemoteItem(const QString &filename);
-    void unlockFolder();
+    void unlockFolder(bool success);
     void taskFailed();
 
 protected:
     OwncloudPropagator *_propagator = nullptr;
     SyncFileItemPtr _item;
-    QByteArray _folderToken;
-    QByteArray _folderId;
-    bool _folderLocked = false;
     bool _isTaskFailed = false;
     QNetworkReply::NetworkError _networkError = QNetworkReply::NoError;
     QString _errorString;
     QString _fullFolderRemotePath;
+    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

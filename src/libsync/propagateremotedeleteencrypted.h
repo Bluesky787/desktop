@@ -27,8 +27,9 @@ public:
     void start() override;
 
 private:
-    void slotFolderUnLockedSuccessfully(const QByteArray &folderId) override;
-    void slotFolderEncryptedMetadataReceived(const QJsonDocument &json, int statusCode) override;
+    void slotFolderUnLockFinished(const QByteArray &folderId, int statusCode) override;
+    void slotFetchMetadataJobFinished(int statusCode, const QString &message) override;
+    void slotUpdateMetadataJobFinished(int statusCode, const QString &message) override;
 };
 
 }

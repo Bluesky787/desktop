@@ -55,52 +55,39 @@ void AbstractPropagateRemoteDeleteEncrypted::storeFirstErrorString(const QString
     }
 }
 
-void AbstractPropagateRemoteDeleteEncrypted::startLsColJob(const QString &path)
+void AbstractPropagateRemoteDeleteEncrypted::fetchMetadataForPath(const QString &path)
 {
-    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Folder is encrypted, let's get the Id from it.";
+    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Folder is encrypted, let's its metadata.";
     _fullFolderRemotePath = _propagator->fullRemotePath(path);
-    auto job = new LsColJob(_propagator->account(), _fullFolderRemotePath, this);
-    job->setProperties({"resourcetype", "http://owncloud.org/ns:fileid"});
-    connect(job, &LsColJob::directoryListingSubfolders, this, &AbstractPropagateRemoteDeleteEncrypted::slotFolderEncryptedIdReceived);
-    connect(job, &LsColJob::finishedWithError, this, &AbstractPropagateRemoteDeleteEncrypted::taskFailed);
-    job->start();
+
+    SyncJournalFileRecord rec;
+    if (!_propagator->_journal->getRootE2eFolderRecord(_fullFolderRemotePath, &rec) || !rec.isValid()) {
+        taskFailed();
+        return;
+    }
+
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(),
+                                                                                       _fullFolderRemotePath,
+                                                                                       _propagator->_journal,
+                                                                                       rec.path(), _fullFolderRemotePath));
+
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            this,
+            &AbstractPropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished);
+
 }
 
-void AbstractPropagateRemoteDeleteEncrypted::slotFolderEncryptedIdReceived(const QStringList &list)
+void AbstractPropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(const QByteArray &folderId, int statusCode)
 {
-    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Received id of folder, trying to lock it so we can prepare the metadata";
-    auto job = qobject_cast<LsColJob *>(sender());
-    const ExtraFolderInfo folderInfo = job->_folderInfos.value(list.first());
-    slotTryLock(folderInfo.fileId);
-}
-
-void AbstractPropagateRemoteDeleteEncrypted::slotTryLock(const QByteArray &folderId)
-{
-    auto lockJob = new LockEncryptFolderApiJob(_propagator->account(), folderId, _propagator->_journal, _propagator->account()->e2e()->_publicKey, this);
-    connect(lockJob, &LockEncryptFolderApiJob::success, this, &AbstractPropagateRemoteDeleteEncrypted::slotFolderLockedSuccessfully);
-    connect(lockJob, &LockEncryptFolderApiJob::error, this, &AbstractPropagateRemoteDeleteEncrypted::taskFailed);
-    lockJob->start();
-}
-
-void AbstractPropagateRemoteDeleteEncrypted::slotFolderLockedSuccessfully(const QByteArray &folderId, const QByteArray &token)
-{
-    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Folder id" << folderId << "Locked Successfully for Upload, Fetching Metadata";
-    _folderLocked = true;
-    _folderToken = token;
-    _folderId = folderId;
-
-    auto job = new GetMetadataApiJob(_propagator->account(), _folderId);
-    connect(job, &GetMetadataApiJob::jsonReceived, this, &AbstractPropagateRemoteDeleteEncrypted::slotFolderEncryptedMetadataReceived);
-    connect(job, &GetMetadataApiJob::error, this, &AbstractPropagateRemoteDeleteEncrypted::taskFailed);
-    job->start();
-}
-
-void AbstractPropagateRemoteDeleteEncrypted::slotFolderUnLockedSuccessfully(const QByteArray &folderId)
-{
-    Q_UNUSED(folderId);
+    if (statusCode != 200) {
+        _item->_httpErrorCode = statusCode;
+        _errorString = tr("\"%1 Failed to unlock encrypted folder %2\".").arg(statusCode).arg(QString::fromUtf8(folderId));
+        _item->_errorString = _errorString;
+        taskFailed();
+        return;
+    }
     qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Folder id" << folderId << "successfully unlocked";
-    _folderLocked = false;
-    _folderToken = "";
 }
 
 void AbstractPropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished()
@@ -150,7 +137,7 @@ void AbstractPropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished()
     }
     _propagator->_journal->commit("Remote Remove");
 
-    unlockFolder();
+    unlockFolder(true);
 }
 
 void AbstractPropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &filename)
@@ -158,44 +145,32 @@ void AbstractPropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &fil
     qCInfo(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Deleting nested encrypted item" << filename;
 
     auto deleteJob = new DeleteJob(_propagator->account(), _propagator->fullRemotePath(filename), this);
-    deleteJob->setFolderToken(_folderToken);
+    deleteJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
 
     connect(deleteJob, &DeleteJob::finishedSignal, this, &AbstractPropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished);
 
     deleteJob->start();
 }
 
-void AbstractPropagateRemoteDeleteEncrypted::unlockFolder()
+void AbstractPropagateRemoteDeleteEncrypted::unlockFolder(bool success)
 {
-    if (!_folderLocked) {
+    if (!_fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
         emit finished(true);
         return;
     }
 
-    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Unlocking folder" << _folderId;
-    auto unlockJob = new UnlockEncryptFolderApiJob(_propagator->account(), _folderId, _folderToken, _propagator->_journal, this);
-
-    connect(unlockJob, &UnlockEncryptFolderApiJob::success, this, &AbstractPropagateRemoteDeleteEncrypted::slotFolderUnLockedSuccessfully);
-    connect(unlockJob, &UnlockEncryptFolderApiJob::error, this, [this] (const QByteArray& fileId, int httpReturnCode) {
-        Q_UNUSED(fileId);
-        _folderLocked = false;
-        _folderToken = "";
-        _item->_httpErrorCode = httpReturnCode;
-        _errorString = tr("\"%1 Failed to unlock encrypted folder %2\".")
-                .arg(httpReturnCode)
-                .arg(QString::fromUtf8(fileId));
-        _item->_errorString =_errorString;
-        taskFailed();
-    });
-    unlockJob->start();
+    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Unlocking folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId();
+    
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &AbstractPropagateRemoteDeleteEncrypted::slotFolderUnLockFinished);
+    _fetchAndUploadE2eeFolderMetadataJob->unlockFolder(success);
 }
 
 void AbstractPropagateRemoteDeleteEncrypted::taskFailed()
 {
     qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Task failed for job" << sender();
     _isTaskFailed = true;
-    if (_folderLocked) {
-        unlockFolder();
+    if (_fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
+        unlockFolder(false);
     } else {
         emit finished(false);
     }
