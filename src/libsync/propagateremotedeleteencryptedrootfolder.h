@@ -16,12 +16,12 @@
 
 #include <QMap>
 
-#include "abstractpropagateremotedeleteencrypted.h"
+#include "basepropagateremotedeleteencrypted.h"
 #include "syncfileitem.h"
 
 namespace OCC {
 
-class PropagateRemoteDeleteEncryptedRootFolder : public AbstractPropagateRemoteDeleteEncrypted
+class PropagateRemoteDeleteEncryptedRootFolder : public BasePropagateRemoteDeleteEncrypted
 {
     Q_OBJECT
 public:

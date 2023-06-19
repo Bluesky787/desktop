@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "abstractpropagateremotedeleteencrypted.h"
+#include "basepropagateremotedeleteencrypted.h"
 
 namespace OCC {
 
-class PropagateRemoteDeleteEncrypted : public AbstractPropagateRemoteDeleteEncrypted
+class PropagateRemoteDeleteEncrypted : public BasePropagateRemoteDeleteEncrypted
 {
     Q_OBJECT
 public:

@@ -25,7 +25,7 @@ using namespace OCC;
 Q_LOGGING_CATEGORY(PROPAGATE_REMOVE_ENCRYPTED, "nextcloud.sync.propagator.remove.encrypted")
 
 PropagateRemoteDeleteEncrypted::PropagateRemoteDeleteEncrypted(OwncloudPropagator *propagator, SyncFileItemPtr item, QObject *parent)
-    : AbstractPropagateRemoteDeleteEncrypted(propagator, item, parent)
+    : BasePropagateRemoteDeleteEncrypted(propagator, item, parent)
 {
 
 }
@@ -40,7 +40,7 @@ void PropagateRemoteDeleteEncrypted::start()
 
 void PropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(const QByteArray &folderId, int statusCode)
 {
-    AbstractPropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(folderId, statusCode);
+    BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(folderId, statusCode);
     emit finished(!_isTaskFailed);
 }
 

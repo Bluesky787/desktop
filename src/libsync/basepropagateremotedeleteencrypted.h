@@ -24,15 +24,15 @@ namespace OCC {
 
 class OwncloudPropagator;
 /**
- * @brief The AbstractPropagateRemoteDeleteEncrypted class is the base class for Propagate Remote Delete Encrypted jobs
+ * @brief The BasePropagateRemoteDeleteEncrypted class is the base class for Propagate Remote Delete Encrypted jobs
  * @ingroup libsync
  */
-class AbstractPropagateRemoteDeleteEncrypted : public QObject
+class BasePropagateRemoteDeleteEncrypted : public QObject
 {
     Q_OBJECT
 public:
-    AbstractPropagateRemoteDeleteEncrypted(OwncloudPropagator *propagator, SyncFileItemPtr item, QObject *parent);
-    ~AbstractPropagateRemoteDeleteEncrypted() override = default;
+    BasePropagateRemoteDeleteEncrypted(OwncloudPropagator *propagator, SyncFileItemPtr item, QObject *parent);
+    ~BasePropagateRemoteDeleteEncrypted() override = default;
 
     [[nodiscard]] QNetworkReply::NetworkError networkError() const;
     [[nodiscard]] QString errorString() const;

@@ -15,7 +15,7 @@
 #include <QFileInfo>
 #include <QLoggingCategory>
 
-#include "basepropagateremotedeleteencrypted.h"
+#include "BasePropagateRemoteDeleteEncrypted.h"
 #include "account.h"
 #include "clientsideencryptionjobs.h"
 #include "deletejob.h"
