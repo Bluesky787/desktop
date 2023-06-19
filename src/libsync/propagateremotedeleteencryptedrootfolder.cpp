@@ -86,7 +86,7 @@ void PropagateRemoteDeleteEncryptedRootFolder::slotFetchMetadataJobFinished(int 
         return;
     }
 
-    const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto metadata = folderMetadata();
 
     if (!metadata->isValid()) {
         taskFailed();
@@ -98,7 +98,7 @@ void PropagateRemoteDeleteEncryptedRootFolder::slotFetchMetadataJobFinished(int 
     metadata->removeAllEncryptedFiles();
 
     qCDebug(PROPAGATE_REMOVE_ENCRYPTED_ROOTFOLDER) << "Metadata updated, sending to the server.";
-    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
+    uploadMetadata(true);
 }
 
 void PropagateRemoteDeleteEncryptedRootFolder::slotUpdateMetadataJobFinished(int statusCode, const QString &message)
@@ -182,7 +182,7 @@ void PropagateRemoteDeleteEncryptedRootFolder::deleteNestedRemoteItem(const QStr
     qCInfo(PROPAGATE_REMOVE_ENCRYPTED_ROOTFOLDER) << "Deleting nested encrypted remote item" << filename;
 
     auto deleteJob = new DeleteJob(_propagator->account(), _propagator->fullRemotePath(filename), this);
-    deleteJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
+    deleteJob->setFolderToken(folderToken());
     deleteJob->setProperty(encryptedFileNamePropertyKey, filename);
 
     connect(deleteJob, &DeleteJob::finishedSignal, this, &PropagateRemoteDeleteEncryptedRootFolder::slotDeleteNestedRemoteItemFinished);

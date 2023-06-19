@@ -75,7 +75,16 @@ void BasePropagateRemoteDeleteEncrypted::fetchMetadataForPath(const QString &pat
             &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
             this,
             &BasePropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished);
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+            &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+            this,
+            &BasePropagateRemoteDeleteEncrypted::slotUpdateMetadataJobFinished);
+    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata();
+}
 
+void BasePropagateRemoteDeleteEncrypted::uploadMetadata(bool keepLock)
+{
+    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(keepLock);
 }
 
 void BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(const QByteArray &folderId, int statusCode)
@@ -144,11 +153,10 @@ void BasePropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &filenam
 {
     qCInfo(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Deleting nested encrypted item" << filename;
 
-    auto deleteJob = new DeleteJob(_propagator->account(), _propagator->fullRemotePath(filename), this);
+    const auto deleteJob = new DeleteJob(_propagator->account(), _propagator->fullRemotePath(filename), this);
     deleteJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
 
     connect(deleteJob, &DeleteJob::finishedSignal, this, &BasePropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished);
-
     deleteJob->start();
 }
 
@@ -174,6 +182,16 @@ void BasePropagateRemoteDeleteEncrypted::taskFailed()
     } else {
         emit finished(false);
     }
+}
+
+QSharedPointer<FolderMetadata> BasePropagateRemoteDeleteEncrypted::folderMetadata() const
+{
+    return _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+}
+
+const QByteArray BasePropagateRemoteDeleteEncrypted::folderToken() const
+{
+    return _fetchAndUploadE2eeFolderMetadataJob->folderToken();
 }
 
 } // namespace OCC

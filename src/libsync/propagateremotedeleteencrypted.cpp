@@ -58,7 +58,7 @@ void PropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished(int statusCode
         return;
     }
 
-    const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto metadata = folderMetadata();
 
     if (!metadata->isValid()) {
         taskFailed();
@@ -88,7 +88,7 @@ void PropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished(int statusCode
     }
 
     qCDebug(PROPAGATE_REMOVE_ENCRYPTED) << "Metadata updated, sending to the server.";
-    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
+    uploadMetadata(true);
 }
 
 void PropagateRemoteDeleteEncrypted::slotUpdateMetadataJobFinished(int statusCode, const QString &message)

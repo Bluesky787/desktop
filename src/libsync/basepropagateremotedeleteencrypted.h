@@ -47,14 +47,20 @@ protected:
     void storeFirstErrorString(const QString &errString);
 
     void fetchMetadataForPath(const QString &path);
-    virtual void slotFolderUnLockFinished(const QByteArray &folderId, int statusCode);
-    virtual void slotFetchMetadataJobFinished(int statusCode, const QString &message) = 0;
-    virtual void slotUpdateMetadataJobFinished(int statusCode, const QString &message) = 0;
-    void slotDeleteRemoteItemFinished();
+    void uploadMetadata(bool keepLock = false);
+
+    [[nodiscard]] QSharedPointer<FolderMetadata> folderMetadata() const;
+    [[nodiscard]] const QByteArray folderToken() const;
 
     void deleteRemoteItem(const QString &filename);
     void unlockFolder(bool success);
     void taskFailed();
+
+protected slots:
+    virtual void slotFolderUnLockFinished(const QByteArray &folderId, int statusCode);
+    virtual void slotFetchMetadataJobFinished(int statusCode, const QString &message) = 0;
+    virtual void slotUpdateMetadataJobFinished(int statusCode, const QString &message) = 0;
+    void slotDeleteRemoteItemFinished();
 
 protected:
     OwncloudPropagator *_propagator = nullptr;
@@ -63,6 +69,8 @@ protected:
     QNetworkReply::NetworkError _networkError = QNetworkReply::NoError;
     QString _errorString;
     QString _fullFolderRemotePath;
+
+private:
     QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 

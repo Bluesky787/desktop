@@ -238,6 +238,11 @@ void FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadata()
 
     _uploadSignalEmitted = false;
 
+    if (!_folderMetadata->isValid()) {
+        slotUploadMetadataError(_folderId, -1);
+        return;
+    }
+
     const auto encryptedMetadata = _folderMetadata->encryptedMetadata();
     if (_isNewMetadataCreated) {
         const auto job = new StoreMetaDataApiJob(_account, _folderId, _folderToken, encryptedMetadata);
@@ -280,7 +285,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadSuccess()
 {
     if (!_uploadSignalEmitted) {
         _uploadSignalEmitted = true;
-        emit uploadFinished(0);
+        emit uploadFinished(200);
     }
 }
 
