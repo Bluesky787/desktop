@@ -80,12 +80,8 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
         return;
     }
     const auto pathSanitized = _path.startsWith(QLatin1Char('/')) ? _path.mid(1) : _path;
-    const FolderMetadata::RootEncryptedFolderInfo topLevelInitData(FolderMetadata::RootEncryptedFolderInfo::createRootPath(rec.path(), pathSanitized),
-                                                                   _metadataKeyForEncryption,
-                                                                   _metadataKeyForDecryption,
-                                                                   _keyChecksums);
 
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, _syncFolderRemotePath + pathSanitized, _journalDb, rec.path(), pathSanitized));
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, _syncFolderRemotePath + pathSanitized, _journalDb, rec.path()));
     _fetchAndUploadE2eeFolderMetadataJob->setFolderToken(_folderToken);
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,

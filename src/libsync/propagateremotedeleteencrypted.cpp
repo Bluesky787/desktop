@@ -51,15 +51,8 @@ void PropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished(int statusCode
         deleteRemoteItem(_item->_encryptedFileName);
         return;
     }
-    const auto fullFolderRemotePathSanitized = _fullFolderRemotePath.startsWith(QLatin1Char('/')) ? _fullFolderRemotePath.mid(1) : _fullFolderRemotePath;
-    SyncJournalFileRecord rec;
-    if (!_propagator->_journal->getRootE2eFolderRecord(_fullFolderRemotePath, &rec) || !rec.isValid()) {
-        taskFailed();
-        return;
-    }
 
     const auto metadata = folderMetadata();
-
     if (!metadata->isValid()) {
         taskFailed();
         return;

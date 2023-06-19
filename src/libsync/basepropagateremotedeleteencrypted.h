@@ -63,7 +63,7 @@ protected slots:
     void slotDeleteRemoteItemFinished();
 
 protected:
-    OwncloudPropagator *_propagator = nullptr;
+    QPointer<OwncloudPropagator> _propagator = nullptr;
     SyncFileItemPtr _item;
     bool _isTaskFailed = false;
     QNetworkReply::NetworkError _networkError = QNetworkReply::NoError;

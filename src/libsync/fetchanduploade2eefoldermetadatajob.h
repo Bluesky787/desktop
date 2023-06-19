@@ -36,8 +36,7 @@ public:
     explicit FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
                                                  const QString &folderPath,
                                                  SyncJournalDb *const journalDb,
-                                                 const QString &currentPath,
-                                                 const QString &possibleRootPath,
+                                                 const QString &pathForTopLevelFolder,
                                                  QObject *parent = nullptr);
 
     void setFolderMetadata(const QSharedPointer<FolderMetadata> &folderMetadata);
@@ -82,8 +81,7 @@ private:
     AccountPtr _account;
     QString _folderPath;
     QPointer<SyncJournalDb> _journalDb;
-    QString _currentPathForTopLevelFolder;
-    QString _possibleRootPath;
+    QString _pathForTopLevelFolder;
     QByteArray _folderId;
     QByteArray _folderToken;
     QSharedPointer<FolderMetadata> _folderMetadata;

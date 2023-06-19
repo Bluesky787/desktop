@@ -34,15 +34,13 @@ namespace OCC {
 FetchAndUploadE2eeFolderMetadataJob::FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
                                                                          const QString &folderPath,
                                                                          SyncJournalDb *const journalDb,
-                                                                         const QString &currentPath,
-                                                                         const QString &possibleRootPath,
+                                                                         const QString &pathForTopLevelFolder,
                                                                          QObject *parent)
     : QObject(parent),
     _account(account),
     _folderPath(folderPath),
     _journalDb(journalDb),
-    _currentPathForTopLevelFolder(currentPath),
-    _possibleRootPath(possibleRootPath)
+    _pathForTopLevelFolder(pathForTopLevelFolder)
 {
 }
 
@@ -157,7 +155,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocume
 
     QSharedPointer<FolderMetadata> metadata(new FolderMetadata(_account,
         statusCode == 404 ? QByteArray{} : json.toJson(QJsonDocument::Compact),
-        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_currentPathForTopLevelFolder, _possibleRootPath))));
+        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_pathForTopLevelFolder, _folderPath))));
     connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, statusCode, metadata] {
         if (!metadata->isValid()) {
             qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error parsing or decrypting metadata.";

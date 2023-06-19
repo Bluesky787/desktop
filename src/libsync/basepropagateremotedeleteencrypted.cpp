@@ -69,7 +69,7 @@ void BasePropagateRemoteDeleteEncrypted::fetchMetadataForPath(const QString &pat
     _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(),
                                                                                        _fullFolderRemotePath,
                                                                                        _propagator->_journal,
-                                                                                       rec.path(), _fullFolderRemotePath));
+                                                                                       rec.path()));
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
             &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
