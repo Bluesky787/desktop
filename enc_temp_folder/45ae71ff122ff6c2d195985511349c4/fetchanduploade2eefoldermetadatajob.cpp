@@ -199,6 +199,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotLockFolder()
     const auto lockJob = new LockEncryptFolderApiJob(_account, _folderId, _journalDb, _account->e2e()->_publicKey, this);
     connect(lockJob, &LockEncryptFolderApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedSuccessfully);
     connect(lockJob, &LockEncryptFolderApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError);
+    auto dValue = _account->capabilities().clientSideEncryptionVersion();
     if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
         lockJob->setCounter(_folderMetadata->newCounter());
     }

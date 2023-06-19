@@ -290,6 +290,9 @@ void LockEncryptFolderApiJob::start()
 
     QNetworkRequest req;
     req.setRawHeader("OCS-APIREQUEST", "true");
+    if (_counter > 0) {
+        req.setRawHeader("X-NC-E2EE-COUNTER", QByteArray::number(_counter));
+    }
     QUrlQuery query;
     query.addQueryItem(QLatin1String("format"), QLatin1String("json"));
     QUrl url = Utility::concatUrlPath(account()->url(), path());
@@ -329,6 +332,11 @@ bool LockEncryptFolderApiJob::finished()
     //TODO: Parse the token and submit.
     emit success(_fileId, token);
     return true;
+}
+
+void LockEncryptFolderApiJob::setCounter(quint64 counter)
+{
+    _counter = counter;
 }
 
 SetEncryptionFlagApiJob::SetEncryptionFlagApiJob(const AccountPtr& account, const QByteArray& fileId, FlagAction flagAction, QObject* parent)

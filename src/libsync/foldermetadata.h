@@ -109,6 +109,8 @@ public:
 
     [[nodiscard]] bool isVersion2AndUp() const;
 
+    [[nodiscard]] quint64 newCounter() const;
+
 private:
     QByteArray encryptedMetadataLegacy();
 
@@ -129,8 +131,6 @@ private:
     [[nodiscard]] QJsonObject convertFileToJsonObject(const EncryptedFile *encryptedFile, const QByteArray &metadataKey) const;
 
     [[nodiscard]] const MetadataVersion latestSupportedMetadataVersion() const;
-
-    [[nodiscard]] quint64 newCounter() const;
 
     static EncryptionStatusEnums::ItemEncryptionStatus fromMedataVersionToItemEncryptionStatus(const MetadataVersion &metadataVersion);
     static MetadataVersion fromItemEncryptionStatusToMedataVersion(const EncryptionStatusEnums::ItemEncryptionStatus &encryptionStatus);
