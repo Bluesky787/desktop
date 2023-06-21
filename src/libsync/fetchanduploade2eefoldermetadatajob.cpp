@@ -88,7 +88,7 @@ void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
 void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata(bool keepLock)
 {
     _keepLockedAfterUpdate = keepLock;
-    if (!_folderToken.isEmpty()) {
+    if (!_folderToken.isEmpty() && _isFolderLocked) {
         slotUploadMetadata();
         return;
     }
@@ -97,14 +97,15 @@ void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata(bool keepLock)
 
 void FetchAndUploadE2eeFolderMetadataJob::unlockFolder(bool success)
 {
-    if (_folderToken.isEmpty()) {
-        emit folderUnlocked(_folderId, 200);
-        return;
-    }
     if (success) {
         connect(this, &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadSuccess);
     } else {
         connect(this, &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &FetchAndUploadE2eeFolderMetadataJob::slotEmitUploadError);
+    }
+
+    if (_folderToken.isEmpty()) {
+        emit folderUnlocked(_folderId, 200);
+        return;
     }
     slotUnlockFolder();
 }
@@ -140,22 +141,23 @@ void FetchAndUploadE2eeFolderMetadataJob::slotFolderEncryptedIdError(QNetworkRep
 {
     Q_ASSERT(reply);
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error retrieving the Id of the encrypted folder.";
-    if (reply) {
-        const auto errorCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const auto errorMessage = reply->errorString();
-        emit fetchFinished(errorCode, errorMessage);
+    if (!reply) {
+        emit fetchFinished(-1, tr("Error fetching encrypted folder id."));
         return;
     }
-    emit fetchFinished(-1, tr("Error fetching encrypted folder id."));
+    const auto errorCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    emit fetchFinished(errorCode, reply->errorString());
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocument &json, int statusCode)
 {
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Metadata Received, parsing it and decrypting" << json.toVariant();
+    const auto metadataFromJson = statusCode == 404
+        ? QByteArray{} : json.toJson(QJsonDocument::Compact);
+    const auto rootEncryptedFolderInfo =
+        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_pathForTopLevelFolder, _folderPath));
 
-    QSharedPointer<FolderMetadata> metadata(new FolderMetadata(_account,
-        statusCode == 404 ? QByteArray{} : json.toJson(QJsonDocument::Compact),
-        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_pathForTopLevelFolder, _folderPath))));
+    const auto metadata(QSharedPointer<FolderMetadata>::create(_account, metadataFromJson, rootEncryptedFolderInfo));
     connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, statusCode, metadata] {
         if (!metadata->isValid()) {
             qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error parsing or decrypting metadata.";
@@ -196,6 +198,12 @@ void FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError(const QByteArray
 
 void FetchAndUploadE2eeFolderMetadataJob::slotLockFolder()
 {
+    Q_ASSERT(_isFolderLocked);
+    if (_isFolderLocked) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error locking folder" << _folderId << "already locked";
+        emit uploadFinished(-1, tr("Error locking folder."));
+        return;
+    }
     const auto lockJob = new LockEncryptFolderApiJob(_account, _folderId, _journalDb, _account->e2e()->_publicKey, this);
     connect(lockJob, &LockEncryptFolderApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedSuccessfully);
     connect(lockJob, &LockEncryptFolderApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError);
@@ -208,25 +216,31 @@ void FetchAndUploadE2eeFolderMetadataJob::slotLockFolder()
 void FetchAndUploadE2eeFolderMetadataJob::slotUnlockFolder()
 {
     Q_ASSERT(!_isUnlockRunning);
+    Q_ASSERT(_isFolderLocked);
 
     if (_isUnlockRunning) {
-        qWarning(lcFetchAndUploadE2eeFolderMetadataJob()) << "Double-call to unlockFolder.";
+        qCWarning(lcFetchAndUploadE2eeFolderMetadataJob) << "Double-call to unlockFolder.";
+        return;
+    }
+    if (!_isFolderLocked) {
+        qCWarning(lcFetchAndUploadE2eeFolderMetadataJob) << "Folder is not locked.";
+        emit folderUnlocked(_folderId, 400);
         return;
     }
 
     _isUnlockRunning = true;
 
-    qDebug() << "Calling Unlock";
-    const auto unlockJob = new UnlockEncryptFolderApiJob(_account, _folderId, _folderToken, _journalDb, this);
+    qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Calling Unlock";
 
+    const auto unlockJob = new UnlockEncryptFolderApiJob(_account, _folderId, _folderToken, _journalDb, this);
     connect(unlockJob, &UnlockEncryptFolderApiJob::success, [this](const QByteArray &folderId) {
-        qDebug() << "Successfully Unlocked";
+        qDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Successfully Unlocked";
         _isFolderLocked = false;
         emit folderUnlocked(folderId, 200);
         _isUnlockRunning = false;
     });
     connect(unlockJob, &UnlockEncryptFolderApiJob::error, [this](const QByteArray &folderId, int httpStatus) {
-        qDebug() << "Unlock Error";
+        qDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Unlock Error";
         emit folderUnlocked(folderId, httpStatus);
         _isUnlockRunning = false;
     });
