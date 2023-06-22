@@ -198,7 +198,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError(const QByteArray
 
 void FetchAndUploadE2eeFolderMetadataJob::slotLockFolder()
 {
-    Q_ASSERT(_isFolderLocked);
+    Q_ASSERT(!_isFolderLocked);
     if (_isFolderLocked) {
         qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error locking folder" << _folderId << "already locked";
         emit uploadFinished(-1, tr("Error locking folder."));
