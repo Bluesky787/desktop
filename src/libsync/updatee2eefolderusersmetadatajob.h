@@ -27,7 +27,6 @@
 #include <QString>
 
 namespace OCC {
-class FolderMetadata;
 class SyncJournalDb;
 class OWNCLOUDSYNC_EXPORT UpdateE2eeFolderUsersMetadataJob : public QObject
 {
@@ -98,12 +97,12 @@ private:
     QByteArray _metadataKeyForEncryption;
     QByteArray _metadataKeyForDecryption;
     QSet<QByteArray> _keyChecksums;
-    QSharedPointer<FolderMetadata> _folderMetadata;
     QSet<UpdateE2eeFolderUsersMetadataJob *> _subJobs;
     UserData _userData;
     QHash<QString, SyncFileItemPtr> _subJobItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
     QMutex _subjobItemsMutex;
     QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+    bool _isInvalidInitInfo = false;
 };
 
 }

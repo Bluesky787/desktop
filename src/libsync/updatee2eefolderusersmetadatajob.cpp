@@ -38,11 +38,32 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
     , _folderUserId(folderUserId)
     , _folderUserCertificate(certificate)
 {
+    SyncJournalFileRecord rec;
+    if (!_journalDb->getRootE2eFolderRecord(_path, &rec) || !rec.isValid()) {
+        _isInvalidInitInfo = true;
+        return;
+    }
+    if (!_journalDb) {
+        _isInvalidInitInfo = true;
+        return;
+    }
+
+    const auto pathSanitized = _path.startsWith(QLatin1Char('/')) ? _path.mid(1) : _path;
+
+    _fetchAndUploadE2eeFolderMetadataJob.reset(
+        new FetchAndUploadE2eeFolderMetadataJob(_account, _syncFolderRemotePath + pathSanitized, _journalDb, rec.path()));
+    _fetchAndUploadE2eeFolderMetadataJob->setFolderToken(_folderToken);
+
     connect(this, &UpdateE2eeFolderUsersMetadataJob::finished, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
 }
 
 void UpdateE2eeFolderUsersMetadataJob::start()
 {
+    if (_isInvalidInitInfo) {
+        emit finished(-1, tr("Init info is invalid for folder %1").arg(_path));
+        return;
+    }
+
     if (_operation != Operation::Add && _operation != Operation::Remove && _operation != Operation::ReEncrypt) {
         emit finished(-1, tr("Wrong operation for folder %1").arg(QString::fromUtf8(_folderId)));
         return;
@@ -68,21 +89,6 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
         emit finished(404, tr("Could not fetch publicKey for user %1").arg(_folderUserId));
         return;
     }
-
-    if (!_journalDb) {
-        emit finished(404, tr("Could not find local folder for %1").arg(QString::fromUtf8(_folderId)));
-        return;
-    }
-
-    SyncJournalFileRecord rec;
-    if (!_journalDb->getRootE2eFolderRecord(_path, &rec) || !rec.isValid()) {
-        emit finished(-1, tr("Could not find top level E2EE folder for %1").arg(_path));
-        return;
-    }
-    const auto pathSanitized = _path.startsWith(QLatin1Char('/')) ? _path.mid(1) : _path;
-
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, _syncFolderRemotePath + pathSanitized, _journalDb, rec.path()));
-    _fetchAndUploadE2eeFolderMetadataJob->setFolderToken(_folderToken);
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished);
@@ -163,10 +169,11 @@ void UpdateE2eeFolderUsersMetadataJob::slotScheduleSubJobs()
 
     [[maybe_unused]] const auto result = _journalDb->getFilesBelowPath(pathInDb.toUtf8(), [this](const SyncJournalFileRecord &record) {
         if (record.isDirectory()) {
+            const auto folderMetadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
             const auto subJob = new UpdateE2eeFolderUsersMetadataJob(_account, _journalDb, _syncFolderRemotePath, UpdateE2eeFolderUsersMetadataJob::ReEncrypt, QString::fromUtf8(record._e2eMangledName));
-            subJob->setMetadataKeyForEncryption(_folderMetadata->metadataKeyForEncryption());
-            subJob->setMetadataKeyForDecryption(_folderMetadata->metadataKeyForDecryption());
-            subJob->setKeyChecksums(_folderMetadata->keyChecksums() + _folderMetadata->keyChecksumsRemoved());
+            subJob->setMetadataKeyForEncryption(folderMetadata->metadataKeyForEncryption());
+            subJob->setMetadataKeyForDecryption(folderMetadata->metadataKeyForDecryption());
+            subJob->setKeyChecksums(_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->keyChecksums() + folderMetadata->keyChecksumsRemoved());
             subJob->setParent(this);
             subJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
             _subJobs.insert(subJob);
@@ -306,7 +313,7 @@ UpdateE2eeFolderUsersMetadataJob::UserData UpdateE2eeFolderUsersMetadataJob::use
 
 SyncFileItem::EncryptionStatus UpdateE2eeFolderUsersMetadataJob::encryptionStatus() const
 {
-    return _folderMetadata->encryptedMetadataEncryptionStatus();
+    return _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->encryptedMetadataEncryptionStatus();
 }
 
 }
