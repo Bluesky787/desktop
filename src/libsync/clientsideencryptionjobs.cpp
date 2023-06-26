@@ -124,12 +124,10 @@ void UpdateMetadataApiJob::start()
     QNetworkRequest req;
     req.setRawHeader("OCS-APIREQUEST", "true");
     req.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-www-form-urlencoded"));
-    // TODO: Uncomment and remove urlQuery.addQueryItem(QStringLiteral("e2e-token"), _token); after Louis fixes the server issue
-    //req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
+    req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
 
     QUrlQuery urlQuery;
     urlQuery.addQueryItem(QStringLiteral("format"), QStringLiteral("json"));
-    urlQuery.addQueryItem(QStringLiteral("e2e-token"), _token);
 
     QUrl url = Utility::concatUrlPath(account()->url(), path());
     url.setQuery(urlQuery);
