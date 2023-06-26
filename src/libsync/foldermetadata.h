@@ -189,7 +189,7 @@ private:
 
     QHash<QString, FolderUser> _folderUsers;
 
-    quint64 _counter;
+    quint64 _counter = 0;
 
     MetadataVersion _existingMetadataVersion = MetadataVersion::VersionUndefined;
     MetadataVersion _encryptedMetadataVersion = MetadataVersion::VersionUndefined;
