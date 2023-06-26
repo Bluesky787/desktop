@@ -88,7 +88,7 @@ void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
 void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata(bool keepLock)
 {
     _keepLockedAfterUpdate = keepLock;
-    if (!_folderToken.isEmpty() && _isFolderLocked) {
+    if (!_folderToken.isEmpty()) {
         slotUploadMetadata();
         return;
     }

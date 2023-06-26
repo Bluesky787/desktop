@@ -52,7 +52,6 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
 
     _fetchAndUploadE2eeFolderMetadataJob.reset(
         new FetchAndUploadE2eeFolderMetadataJob(_account, _syncFolderRemotePath + pathSanitized, _journalDb, rec.path()));
-    _fetchAndUploadE2eeFolderMetadataJob->setFolderToken(_folderToken);
 
     connect(this, &UpdateE2eeFolderUsersMetadataJob::finished, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
 }
@@ -132,6 +131,7 @@ void UpdateE2eeFolderUsersMetadataJob::startUpdate()
     }
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished);
+    _fetchAndUploadE2eeFolderMetadataJob->setFolderToken(_folderToken);
     _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
 }
 
