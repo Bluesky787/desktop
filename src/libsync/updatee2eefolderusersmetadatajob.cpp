@@ -50,8 +50,17 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
 
     const auto pathSanitized = _path.startsWith(QLatin1Char('/')) ? _path.mid(1) : _path;
 
-    _fetchAndUploadE2eeFolderMetadataJob.reset(
-        new FetchAndUploadE2eeFolderMetadataJob(_account, _syncFolderRemotePath + pathSanitized, _journalDb, rec.path()));
+    const auto folderPath = _syncFolderRemotePath + pathSanitized;
+
+    const auto rootEncFolderInfo = FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(
+                                                                folderPath, rec.path()),
+                                                                _metadataKeyForEncryption,
+                                                                _metadataKeyForDecryption,
+                                                                _keyChecksums);
+
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(
+        _account, folderPath, _journalDb, rootEncFolderInfo)
+    );
 
     connect(this, &UpdateE2eeFolderUsersMetadataJob::finished, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
 }
@@ -88,6 +97,13 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
         emit finished(404, tr("Could not fetch publicKey for user %1").arg(_folderUserId));
         return;
     }
+
+    auto rootEncFolderInfo = _fetchAndUploadE2eeFolderMetadataJob->rootEncryptedFolderInfo();
+    rootEncFolderInfo.keyForEncryption = _metadataKeyForEncryption;
+    rootEncFolderInfo.keyForDecryption = _metadataKeyForDecryption;
+    rootEncFolderInfo.keyChecksums = _keyChecksums;
+
+    _fetchAndUploadE2eeFolderMetadataJob->setRootEncryptedFolderInfo(rootEncFolderInfo);
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished);

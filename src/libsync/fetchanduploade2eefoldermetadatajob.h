@@ -15,6 +15,7 @@
 #pragma once
 
 #include "account.h"
+#include "foldermetadata.h"
 #include "gui/sharemanager.h"
 #include "syncfileitem.h"
 #include "gui/sharee.h"
@@ -26,7 +27,6 @@
 #include <QString>
 
 namespace OCC {
-class FolderMetadata;
 class SyncJournalDb;
 class OWNCLOUDSYNC_EXPORT FetchAndUploadE2eeFolderMetadataJob : public QObject
 {
@@ -37,6 +37,11 @@ public:
                                                  const QString &folderPath,
                                                  SyncJournalDb *const journalDb,
                                                  const QString &pathForTopLevelFolder,
+                                                 QObject *parent = nullptr);
+    explicit FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
+                                                 const QString &folderPath,
+                                                 SyncJournalDb *const journalDb,
+                                                 const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo,
                                                  QObject *parent = nullptr);
 
     void setFolderMetadata(const QSharedPointer<FolderMetadata> &folderMetadata);
@@ -50,7 +55,9 @@ public:
     [[nodiscard]] const bool isUnlockRunning() const;
     [[nodiscard]] const bool isFolderLocked() const;
 
-public:
+    void setRootEncryptedFolderInfo(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo);
+    [[nodiscard]] const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo() const;
+
     void fetchMetadata(bool allowEmptyMetadata = false);
     void uploadMetadata(bool keepLock = false);
     void unlockFolder(bool success = true);
@@ -81,10 +88,10 @@ private:
     AccountPtr _account;
     QString _folderPath;
     QPointer<SyncJournalDb> _journalDb;
-    QString _pathForTopLevelFolder;
     QByteArray _folderId;
     QByteArray _folderToken;
     QSharedPointer<FolderMetadata> _folderMetadata;
+    FolderMetadata::RootEncryptedFolderInfo _rootEncryptedFolderInfo;
     bool _allowEmptyMetadata = false;
     bool _isFolderLocked = false;
     bool _isUnlockRunning = false;

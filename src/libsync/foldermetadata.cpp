@@ -55,6 +55,11 @@ QString metadataStringFromOCsDocument(const QJsonDocument &ocsDoc)
 }
 }
 
+FolderMetadata::RootEncryptedFolderInfo::RootEncryptedFolderInfo()
+{
+    *this = FolderMetadata::RootEncryptedFolderInfo::makeDefault();
+}
+
 FolderMetadata::RootEncryptedFolderInfo::RootEncryptedFolderInfo(const QString &remotePath,
                                  const QByteArray &encryptionKey,
                                  const QByteArray &decryptionKey,

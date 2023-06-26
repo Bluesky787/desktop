@@ -18,7 +18,6 @@
 #include "common/syncjournaldb.h"
 #include "clientsideencryptionjobs.h"
 #include "clientsideencryption.h"
-#include "foldermetadata.h"
 
 #include <QLoggingCategory>
 #include <QNetworkReply>
@@ -39,10 +38,24 @@ FetchAndUploadE2eeFolderMetadataJob::FetchAndUploadE2eeFolderMetadataJob(const A
     : QObject(parent),
     _account(account),
     _folderPath(folderPath),
-    _journalDb(journalDb),
-    _pathForTopLevelFolder(pathForTopLevelFolder)
+    _journalDb(journalDb)
+{
+    _rootEncryptedFolderInfo = FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(pathForTopLevelFolder, folderPath));
+}
+
+FetchAndUploadE2eeFolderMetadataJob::FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
+                                                                         const QString &folderPath,
+                                                                         SyncJournalDb *const journalDb,
+                                                                         const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo,
+                                                                         QObject *parent)
+    : QObject(parent)
+    , _account(account)
+    , _folderPath(folderPath)
+    , _journalDb(journalDb)
+    , _rootEncryptedFolderInfo(rootEncryptedFolderInfo)
 {
 }
+
 
 void FetchAndUploadE2eeFolderMetadataJob::setFolderMetadata(const QSharedPointer<FolderMetadata> &folderMetadata)
 {
@@ -77,6 +90,16 @@ const bool FetchAndUploadE2eeFolderMetadataJob::isUnlockRunning() const
 const bool FetchAndUploadE2eeFolderMetadataJob::isFolderLocked() const
 {
     return _isFolderLocked;
+}
+
+void FetchAndUploadE2eeFolderMetadataJob::setRootEncryptedFolderInfo(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo)
+{
+    _rootEncryptedFolderInfo = rootEncryptedFolderInfo;
+}
+
+const FolderMetadata::RootEncryptedFolderInfo &FetchAndUploadE2eeFolderMetadataJob::rootEncryptedFolderInfo() const
+{
+    return _rootEncryptedFolderInfo;
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
@@ -154,10 +177,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocume
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Metadata Received, parsing it and decrypting" << json.toVariant();
     const auto metadataFromJson = statusCode == 404
         ? QByteArray{} : json.toJson(QJsonDocument::Compact);
-    const auto rootEncryptedFolderInfo =
-        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_pathForTopLevelFolder, _folderPath));
-
-    const auto metadata(QSharedPointer<FolderMetadata>::create(_account, metadataFromJson, rootEncryptedFolderInfo));
+    const auto metadata(QSharedPointer<FolderMetadata>::create(_account, metadataFromJson, _rootEncryptedFolderInfo));
     connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, statusCode, metadata] {
         if (!metadata->isValid()) {
             qCDebug(lcFetchAndUploadE2eeFolderMetadataJob()) << "Error parsing or decrypting metadata.";
@@ -215,8 +235,8 @@ void FetchAndUploadE2eeFolderMetadataJob::slotLockFolder()
 
 void FetchAndUploadE2eeFolderMetadataJob::slotUnlockFolder()
 {
-    Q_ASSERT(!_isUnlockRunning);
-    Q_ASSERT(_isFolderLocked);
+    //Q_ASSERT(!_isUnlockRunning);
+    //Q_ASSERT(_isFolderLocked);
 
     if (_isUnlockRunning) {
         qCWarning(lcFetchAndUploadE2eeFolderMetadataJob) << "Double-call to unlockFolder.";

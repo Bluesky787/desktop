@@ -59,6 +59,7 @@ public:
 
     // required parts from root E2EE folder's metadata for version 2.0+
     struct OWNCLOUDSYNC_EXPORT RootEncryptedFolderInfo {
+        RootEncryptedFolderInfo();
         explicit RootEncryptedFolderInfo(const QString &remotePath,
                                          const QByteArray &encryptionKey = {},
                                          const QByteArray &decryptionKey = {},
