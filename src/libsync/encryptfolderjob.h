@@ -65,7 +65,6 @@ private:
     QString _path;
     QString _pathNonEncrypted;
     QByteArray _fileId;
-    QByteArray _folderToken;
     QString _errorString;
     OwncloudPropagator *_propagator = nullptr;
     SyncFileItemPtr _item;
