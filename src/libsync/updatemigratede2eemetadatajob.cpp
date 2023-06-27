@@ -49,7 +49,7 @@ void UpdateMigratedE2eeMetadataJob::start()
                                                                                      propagator()->account()->davUser(),
                                                                                      propagator()->account()->e2e()->_certificate);
     updateMedatadaAndSubfoldersJob->setParent(this);
-    updateMedatadaAndSubfoldersJob->setJubJobItems(_subJobItems);
+    updateMedatadaAndSubfoldersJob->setSubJobSyncItems(_subJobItems);
     _subJobItems.clear();
     updateMedatadaAndSubfoldersJob->start();
     connect(updateMedatadaAndSubfoldersJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [this, updateMedatadaAndSubfoldersJob](const int code, const QString& message) {

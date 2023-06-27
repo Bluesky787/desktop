@@ -53,7 +53,7 @@ void PropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished(int statusCode
     }
 
     const auto metadata = folderMetadata();
-    if (!metadata->isValid()) {
+    if (!metadata || !metadata->isValid()) {
         taskFailed();
         return;
     }

@@ -12,10 +12,13 @@
  * for more details.
  */
 
+#include "account.h"
 #include "updatee2eefolderusersmetadatajob.h"
 #include "foldermetadata.h"
 #include "common/syncjournalfilerecord.h"
 #include "common/syncjournaldb.h"
+
+#include <QSslCertificate>
 
 namespace OCC
 {
@@ -27,7 +30,7 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
                                                        const Operation operation,
                                                        const QString &path,
                                                        const QString &folderUserId,
-                                                       QSslCertificate certificate,
+                                                       const QSslCertificate &certificate,
                                                        QObject *parent)
     : QObject(parent)
     , _account(account)
@@ -38,42 +41,20 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
     , _folderUserId(folderUserId)
     , _folderUserCertificate(certificate)
 {
-    SyncJournalFileRecord rec;
-    if (!_journalDb->getRootE2eFolderRecord(_path, &rec) || !rec.isValid()) {
-        _isInvalidInitInfo = true;
-        return;
-    }
-    if (!_journalDb) {
-        _isInvalidInitInfo = true;
-        return;
-    }
-
     const auto pathSanitized = _path.startsWith(QLatin1Char('/')) ? _path.mid(1) : _path;
-
     const auto folderPath = _syncFolderRemotePath + pathSanitized;
 
-    const auto rootEncFolderInfo = FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(
-                                                                folderPath, rec.path()),
-                                                                _metadataKeyForEncryption,
-                                                                _metadataKeyForDecryption,
-                                                                _keyChecksums);
-
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(
-        _account, folderPath, _journalDb, rootEncFolderInfo)
-    );
+    SyncJournalFileRecord rec;
+    [[maybe_discard]] const auto result = _journalDb->getRootE2eFolderRecord(_path, &rec);
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, folderPath, _journalDb, rec.path()));
 
     connect(this, &UpdateE2eeFolderUsersMetadataJob::finished, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
 }
 
 void UpdateE2eeFolderUsersMetadataJob::start()
 {
-    if (_isInvalidInitInfo) {
-        emit finished(-1, tr("Init info is invalid for folder %1").arg(_path));
-        return;
-    }
-
     if (_operation != Operation::Add && _operation != Operation::Remove && _operation != Operation::ReEncrypt) {
-        emit finished(-1, tr("Wrong operation for folder %1").arg(QString::fromUtf8(_folderId)));
+        emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
         return;
     }
 
@@ -98,16 +79,18 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
         return;
     }
 
-    auto rootEncFolderInfo = _fetchAndUploadE2eeFolderMetadataJob->rootEncryptedFolderInfo();
-    rootEncFolderInfo.keyForEncryption = _metadataKeyForEncryption;
-    rootEncFolderInfo.keyForDecryption = _metadataKeyForDecryption;
-    rootEncFolderInfo.keyChecksums = _keyChecksums;
+    const auto pathSanitized = _path.startsWith(QLatin1Char('/')) ? _path.mid(1) : _path;
+    const auto folderPath = _syncFolderRemotePath + pathSanitized;
+    SyncJournalFileRecord rec;
+    if (!_journalDb->getRootE2eFolderRecord(_path, &rec) || !rec.isValid()) {
+        emit finished(404, tr("Could not find root encrypted folder for folder %1").arg(_path));
+        return;
+    }
 
-    _fetchAndUploadE2eeFolderMetadataJob->setRootEncryptedFolderInfo(rootEncFolderInfo);
-
+    const auto rootEncFolderInfo = FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(folderPath, rec.path()));
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
+    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(rootEncFolderInfo, true);
 }
 
 void UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished(int statusCode, const QString &message)
@@ -116,11 +99,11 @@ void UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished(int statusCo
 
     if (statusCode != 200) {
         qCritical() << "fetch metadata finished with error" << statusCode << message;
-        emit finished(SyncFileItem::Status::FatalError);
+        emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
         return;
     }
 
-    if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->isValid()) {
+    if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata() || !_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->isValid()) {
         emit finished(403, tr("Could not add or remove a folder user %1, for folder %2").arg(_folderUserId).arg(_path));
         return;
     }
@@ -129,18 +112,26 @@ void UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished(int statusCo
 
 void UpdateE2eeFolderUsersMetadataJob::startUpdate()
 {
-    if (_operation != Operation::Add && _operation != Operation::Remove && _operation != Operation::ReEncrypt) {
-        emit finished(-1, tr("Wrong operation for folder %1").arg(QString::fromUtf8(_folderId)));
+    if (_operation == Operation::Invalid) {
+        qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Invalid operation";
+        emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
         return;
     }
 
     if (_operation == Operation::Add || _operation == Operation::Remove) {
+        if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()) {
+            qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Metadata is null";
+            emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
+            return;
+        }
+
         const auto result = _operation == Operation::Add
             ? _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->addUser(_folderUserId, _folderUserCertificate)
             : _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->removeUser(_folderUserId);
 
         if (!result) {
-            emit finished(-1);
+            qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Could not perform operation" << _operation << "on metadata";
+            emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
             return;
         }
 
@@ -154,13 +145,14 @@ void UpdateE2eeFolderUsersMetadataJob::startUpdate()
 void UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished(int code, const QString &message)
 {
     if (code != 200) {
-        qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Update metadata error for folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId() << "with error"
+        qCWarning(lcUpdateE2eeFolderUsersMetadataJob) << "Update metadata error for folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId() << "with error"
                                                     << code << message;
-        qCDebug(lcUpdateE2eeFolderUsersMetadataJob()) << "Unlocking the folder.";
+        
         if (_operation == Operation::Add || _operation == Operation::Remove) {
-            slotUnlockFolder(false);
+            qCDebug(lcUpdateE2eeFolderUsersMetadataJob()) << "Unlocking the folder.";
+            unlockFolder(false);
         } else {
-            emit finished(code, tr("Failed to update folder metadata."));
+            emit finished(code, tr("Error updating metadata for a folder %1").arg(_path) + QStringLiteral(":%1").arg(message));
         }
         return;
     }
@@ -168,9 +160,9 @@ void UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished(int code, cons
     qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Uploading of the metadata success.";
     if (_operation == Operation::Add || _operation == Operation::Remove) {
         qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Trying to schedule more jobs.";
-        slotScheduleSubJobs();
+        scheduleSubJobs();
         if (_subJobs.isEmpty()) {
-            slotUnlockFolder(true);
+            unlockFolder(true);
         } else {
             _subJobs.values().last()->start();
         }
@@ -179,17 +171,28 @@ void UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished(int code, cons
     }
 }
 
-void UpdateE2eeFolderUsersMetadataJob::slotScheduleSubJobs()
+void UpdateE2eeFolderUsersMetadataJob::scheduleSubJobs()
 {
-    const auto pathInDb = _path.mid(_syncFolderRemotePath.size());
+    const auto isMetadataValid = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata() && _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->isValid();
+    if (!isMetadataValid) {
+        if (_operation == Operation::Add || _operation == Operation::Remove) {
+            qCWarning(lcUpdateE2eeFolderUsersMetadataJob()) << "Metadata is invalid. Unlocking the folder.";
+            unlockFolder(false);
+        } else {
+            qCWarning(lcUpdateE2eeFolderUsersMetadataJob()) << "Metadata is invalid.";
+            emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
+        }
+        return;
+    }
 
+    const auto pathInDb = _path.mid(_syncFolderRemotePath.size());
     [[maybe_unused]] const auto result = _journalDb->getFilesBelowPath(pathInDb.toUtf8(), [this](const SyncJournalFileRecord &record) {
         if (record.isDirectory()) {
             const auto folderMetadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
             const auto subJob = new UpdateE2eeFolderUsersMetadataJob(_account, _journalDb, _syncFolderRemotePath, UpdateE2eeFolderUsersMetadataJob::ReEncrypt, QString::fromUtf8(record._e2eMangledName));
             subJob->setMetadataKeyForEncryption(folderMetadata->metadataKeyForEncryption());
             subJob->setMetadataKeyForDecryption(folderMetadata->metadataKeyForDecryption());
-            subJob->setKeyChecksums(_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->keyChecksums() + folderMetadata->keyChecksumsRemoved());
+            subJob->setKeyChecksums(folderMetadata->keyChecksums() + folderMetadata->keyChecksumsRemoved());
             subJob->setParent(this);
             subJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
             _subJobs.insert(subJob);
@@ -198,13 +201,8 @@ void UpdateE2eeFolderUsersMetadataJob::slotScheduleSubJobs()
     });
 }
 
-void UpdateE2eeFolderUsersMetadataJob::slotUnlockFolder(bool success)
+void UpdateE2eeFolderUsersMetadataJob::unlockFolder(bool success)
 {
-    if (!_journalDb) {
-        emit finished(404, tr("Could not find local folder for %1").arg(QString::fromUtf8(_fetchAndUploadE2eeFolderMetadataJob->folderId())));
-        return;
-    }
-
     qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Calling Unlock";
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &UpdateE2eeFolderUsersMetadataJob::slotFolderUnlocked);
     _fetchAndUploadE2eeFolderMetadataJob->unlockFolder(success);
@@ -212,37 +210,39 @@ void UpdateE2eeFolderUsersMetadataJob::slotUnlockFolder(bool success)
 
 void UpdateE2eeFolderUsersMetadataJob::slotFolderUnlocked(const QByteArray &folderId, int httpStatus)
 {
-    const QString message = httpStatus != 200 ? tr("Failed to unlock a folder.") : QString{};
+    const auto message = httpStatus != 200 ? tr("Failed to unlock a folder.") : QString{};
     emit finished(httpStatus, message);
 }
 
-void UpdateE2eeFolderUsersMetadataJob::slotSubJobsFinished()
+void UpdateE2eeFolderUsersMetadataJob::subJobsFinished(bool success)
 {
-    slotUnlockFolder(true);
+    unlockFolder(success);
 }
 
 void UpdateE2eeFolderUsersMetadataJob::slotSubJobFinished(int code, const QString &message)
 {
-    Q_UNUSED(message);
     if (code != 200) {
-        slotUnlockFolder(false);
+        qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "sub job finished with error" << message;
+        subJobsFinished(false);
         return;
     }
     const auto job = qobject_cast<UpdateE2eeFolderUsersMetadataJob *>(sender());
     Q_ASSERT(job);
     if (!job) {
-        slotUnlockFolder(false);
+        qCWarning(lcUpdateE2eeFolderUsersMetadataJob) << "slotSubJobFinished must be invoked by signal";
+        emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path) + QStringLiteral(":%1").arg(message));
+        subJobsFinished(false);
         return;
     }
 
     {
-        QMutexLocker locker(&_subjobItemsMutex);
-        const auto foundInHash = _subJobItems.constFind(job->path());
-        if (foundInHash != _subJobItems.constEnd() && foundInHash.value()) {
+        QMutexLocker locker(&_subJobSyncItemsMutex);
+        const auto foundInHash = _subJobSyncItems.constFind(job->path());
+        if (foundInHash != _subJobSyncItems.constEnd() && foundInHash.value()) {
             foundInHash.value()->_e2eEncryptionStatus = job->encryptionStatus();
             foundInHash.value()->_e2eEncryptionStatusRemote = job->encryptionStatus();
             foundInHash.value()->_e2eEncryptionMaximumAvailableStatus = EncryptionStatusEnums::fromEndToEndEncryptionApiVersion(_account->capabilities().clientSideEncryptionVersion());
-            _subJobItems.erase(foundInHash);
+            _subJobSyncItems.erase(foundInHash);
         }
     }
 
@@ -250,7 +250,7 @@ void UpdateE2eeFolderUsersMetadataJob::slotSubJobFinished(int code, const QStrin
     job->deleteLater();
 
     if (_subJobs.isEmpty()) {
-        slotSubJobsFinished();
+        subJobsFinished(true);
     } else {
         _subJobs.values().last()->start();
     }
@@ -312,24 +312,31 @@ void UpdateE2eeFolderUsersMetadataJob::setKeyChecksums(const QSet<QByteArray> &k
     _keyChecksums = keyChecksums;
 }
 
-void UpdateE2eeFolderUsersMetadataJob::setJubJobItems(const QHash<QString, SyncFileItemPtr> &subJobItems)
+void UpdateE2eeFolderUsersMetadataJob::setSubJobSyncItems(const QHash<QString, SyncFileItemPtr> &subJobSyncItems)
 {
-    _subJobItems = subJobItems;
+    _subJobSyncItems = subJobSyncItems;
 }
 
-QString UpdateE2eeFolderUsersMetadataJob::path() const
+const QString &UpdateE2eeFolderUsersMetadataJob::path() const
 {
     return _path;
 }
 
-UpdateE2eeFolderUsersMetadataJob::UserData UpdateE2eeFolderUsersMetadataJob::userData() const
+const UpdateE2eeFolderUsersMetadataJob::UserData &UpdateE2eeFolderUsersMetadataJob::userData() const
 {
     return _userData;
 }
 
 SyncFileItem::EncryptionStatus UpdateE2eeFolderUsersMetadataJob::encryptionStatus() const
 {
-    return _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->encryptedMetadataEncryptionStatus();
+    const auto folderMetadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto isMetadataValid = folderMetadata && folderMetadata->isValid();
+    if (!isMetadataValid) {
+        qCWarning(lcUpdateE2eeFolderUsersMetadataJob) << "_fetchAndUploadE2eeFolderMetadataJob->folderMetadata() is invalid";
+    }
+    return !isMetadataValid
+        ? EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted
+        : folderMetadata->encryptedMetadataEncryptionStatus();
 }
 
 }

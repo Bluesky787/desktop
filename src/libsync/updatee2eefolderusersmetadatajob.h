@@ -14,24 +14,25 @@
 
 #pragma once
 
-#include "account.h"
+#include "accountfwd.h"
 #include "fetchanduploade2eefoldermetadatajob.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderUsersMetadataJob
 #include "gui/sharemanager.h"
 #include "syncfileitem.h"
 #include "gui/sharee.h"
+
 #include <QHash>
 #include <QMutex>
 #include <QObject>
 #include <QScopedPointer>
-#include <QSslCertificate>
 #include <QString>
 
-namespace OCC {
+class QSslCertificate;
+namespace OCC
+{
 class SyncJournalDb;
 class OWNCLOUDSYNC_EXPORT UpdateE2eeFolderUsersMetadataJob : public QObject
 {
     Q_OBJECT
-
 public:
     enum Operation { Invalid = -1, Add = 0, Remove, ReEncrypt };
 
@@ -47,36 +48,41 @@ public:
                                         const Operation operation,
                                         const QString &path = {},
                                         const QString &folderUserId = {},
-                                        QSslCertificate certificate = QSslCertificate{},
+                                        const QSslCertificate &certificate = QSslCertificate{},
                                         QObject *parent = nullptr);
     ~UpdateE2eeFolderUsersMetadataJob() override = default;
 
 public:
-    [[nodiscard]] QString path() const;
-    [[nodiscard]] UserData userData() const;
+    [[nodiscard]] const QString &path() const;
+    [[nodiscard]] const UserData &userData() const;
     [[nodiscard]] SyncFileItem::EncryptionStatus encryptionStatus() const;
 
 public slots:
     void start();
-    void startUpdate();
     void setUserData(const UserData &userData);
+
     void setFolderToken(const QByteArray &folderToken);
     void setMetadataKeyForEncryption(const QByteArray &metadataKey);
     void setMetadataKeyForDecryption(const QByteArray &metadataKey);
     void setKeyChecksums(const QSet<QByteArray> &keyChecksums);
 
-    void setJubJobItems(const QHash<QString, SyncFileItemPtr> &subJobItems);
+    void setSubJobSyncItems(const QHash<QString, SyncFileItemPtr> &subJobSyncItems);
+
+private:
+    void unlockFolder(bool success);
+    void scheduleSubJobs();
+    void startUpdate();
+    void subJobsFinished(bool success);
 
 private slots:
     void slotStartE2eeMetadataJobs();
     void slotFetchMetadataJobFinished(int statusCode, const QString &message);
-    void slotScheduleSubJobs();
-    void slotUnlockFolder(bool success);
-    void slotUpdateMetadataFinished(int code, const QString &message = {});
-    void slotFolderUnlocked(const QByteArray &folderId, int httpStatus);
-    void slotSubJobsFinished();
+
     void slotSubJobFinished(int code, const QString &message = {});
-    
+
+    void slotFolderUnlocked(const QByteArray &folderId, int httpStatus);
+
+    void slotUpdateMetadataFinished(int code, const QString &message = {});
     void slotCertificatesFetchedFromServer(const QHash<QString, QSslCertificate> &results);
     void slotCertificateFetchedFromKeychain(const QSslCertificate certificate);
 
@@ -87,22 +93,22 @@ private: signals:
 private:
     AccountPtr _account;
     QPointer<SyncJournalDb> _journalDb;
-    QByteArray _folderId;
     QString _syncFolderRemotePath;
-    Operation _operation;
+    Operation _operation = Invalid;
     QString _path;
     QString _folderUserId;
     QSslCertificate _folderUserCertificate;
     QByteArray _folderToken;
+    // needed when re-encrypting nested folders' metadata after top-level folder's metadata has changed
     QByteArray _metadataKeyForEncryption;
     QByteArray _metadataKeyForDecryption;
     QSet<QByteArray> _keyChecksums;
+    //-------------------------------------------------------------------------------------------------
     QSet<UpdateE2eeFolderUsersMetadataJob *> _subJobs;
-    UserData _userData;
-    QHash<QString, SyncFileItemPtr> _subJobItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
-    QMutex _subjobItemsMutex;
+    UserData _userData; // share info, etc.
+    QHash<QString, SyncFileItemPtr> _subJobSyncItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
+    QMutex _subJobSyncItemsMutex;
     QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
-    bool _isInvalidInitInfo = false;
 };
 
 }

@@ -16,9 +16,6 @@
 
 #include "account.h"
 #include "foldermetadata.h"
-#include "gui/sharemanager.h"
-#include "syncfileitem.h"
-#include "gui/sharee.h"
 
 #include <QHash>
 #include <QMutex>
@@ -38,44 +35,41 @@ public:
                                                  SyncJournalDb *const journalDb,
                                                  const QString &pathForTopLevelFolder,
                                                  QObject *parent = nullptr);
-    explicit FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
-                                                 const QString &folderPath,
-                                                 SyncJournalDb *const journalDb,
-                                                 const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo,
-                                                 QObject *parent = nullptr);
 
-    void setFolderMetadata(const QSharedPointer<FolderMetadata> &folderMetadata);
     [[nodiscard]] QSharedPointer<FolderMetadata> folderMetadata() const;
 
     [[nodiscard]] const QByteArray folderId() const;
 
-    void setFolderToken(const QByteArray &token);
+    void setFolderToken(const QByteArray &token); //use this when modifying metadata for multiple folders inside top-level one which is locked
     [[nodiscard]] const QByteArray folderToken() const;
 
     [[nodiscard]] const bool isUnlockRunning() const;
     [[nodiscard]] const bool isFolderLocked() const;
 
-    void setRootEncryptedFolderInfo(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo);
-    [[nodiscard]] const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo() const;
-
+    void fetchMetadata(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata = false);
     void fetchMetadata(bool allowEmptyMetadata = false);
     void uploadMetadata(bool keepLock = false);
     void unlockFolder(bool success = true);
 
+private:
+    void lockFolder();
+    void startUploadMetadata();
+    void startFetchMetadata();
+    void fetchFolderEncryptedId();
+
 private slots:
-    void slotFetchFolderMetadata();
-    void slotFetchFolderEncryptedId();
     void slotFolderEncryptedIdReceived(const QStringList &list);
     void slotFolderEncryptedIdError(QNetworkReply *reply);
+
     void slotMetadataReceived(const QJsonDocument &json, int statusCode);
     void slotMetadataReceivedError(const QByteArray &folderId, int httpReturnCode);
+
     void slotFolderLockedSuccessfully(const QByteArray &folderId, const QByteArray &token);
     void slotFolderLockedError(const QByteArray &folderId, int httpErrorCode);
-    void slotLockFolder();
-    void slotUnlockFolder();
-    void slotUploadMetadata();
+
     void slotUploadMetadataSuccess(const QByteArray &folderId);
     void slotUploadMetadataError(const QByteArray &folderId, int httpReturnCode);
+
     void slotEmitUploadSuccess();
     void slotEmitUploadError();
 
@@ -90,14 +84,18 @@ private:
     QPointer<SyncJournalDb> _journalDb;
     QByteArray _folderId;
     QByteArray _folderToken;
+
     QSharedPointer<FolderMetadata> _folderMetadata;
+
     FolderMetadata::RootEncryptedFolderInfo _rootEncryptedFolderInfo;
+
+    int _uploadErrorCode = 200;
+
     bool _allowEmptyMetadata = false;
     bool _isFolderLocked = false;
     bool _isUnlockRunning = false;
     bool _isNewMetadataCreated = false;
     bool _keepLockedAfterUpdate = false;
-    bool _uploadSignalEmitted = false;
 };
 
 }

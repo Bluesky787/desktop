@@ -186,6 +186,10 @@ void BasePropagateRemoteDeleteEncrypted::taskFailed()
 
 QSharedPointer<FolderMetadata> BasePropagateRemoteDeleteEncrypted::folderMetadata() const
 {
+    Q_ASSERT(_fetchAndUploadE2eeFolderMetadataJob->folderMetadata());
+    if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()) {
+        qCWarning(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Metadata is null!";
+    }
     return _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
 }
 

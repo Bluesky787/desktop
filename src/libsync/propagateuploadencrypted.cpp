@@ -101,6 +101,12 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
 
     const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
 
+    if (!metadata || !metadata->isValid()) {
+        qCDebug(lcPropagateUploadEncrypted()) << "There was an error encrypting the file, aborting upload. Invalid metadata.";
+        emit error();
+        return;
+    }
+
     QFileInfo info(_propagator->fullLocalPath(_item->_file));
     const QString fileName = info.fileName();
 
@@ -162,7 +168,7 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
 
     qCDebug(lcPropagateUploadEncrypted) << "Creating the metadata for the encrypted file.";
 
-    _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->addEncryptedFile(encryptedFile);
+    metadata->addEncryptedFile(encryptedFile);
 
     qCDebug(lcPropagateUploadEncrypted) << "Metadata created, sending to the server.";
 
