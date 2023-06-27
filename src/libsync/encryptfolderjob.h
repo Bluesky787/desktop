@@ -14,6 +14,7 @@
 #pragma once
 
 #include "account.h"
+#include "fetchanduploade2eefoldermetadatajob.h"
 #include "syncfileitem.h"
 #include "owncloudpropagator.h"
 
@@ -49,15 +50,13 @@ signals:
 public slots:
     void setPathNonEncrypted(const QString &pathNonEncrypted);
 
+private:
+    void uploadMetadata();
+
 private slots:
     void slotEncryptionFlagSuccess(const QByteArray &folderId);
     void slotEncryptionFlagError(const QByteArray &folderId, const int httpReturnCode, const QString &errorMessage);
-    void slotLockForEncryptionSuccess(const QByteArray &folderId, const QByteArray &token);
-    void slotLockForEncryptionError(const QByteArray &folderId, const int httpReturnCode, const QString &errorMessage);
-    void slotUnlockFolderSuccess(const QByteArray &folderId);
-    void slotUnlockFolderError(const QByteArray &folderId, const int httpReturnCode, const QString &errorMessage);
-    void slotUploadMetadataSuccess(const QByteArray &folderId);
-    void slotUpdateMetadataError(const QByteArray &folderId, const int httpReturnCode);
+    void slotUploadMetadataFinished(int statusCode, const QString &message);
     void slotSetEncryptionFlag();
 
 private:
@@ -70,6 +69,6 @@ private:
     QString _errorString;
     OwncloudPropagator *_propagator = nullptr;
     SyncFileItemPtr _item;
-    EncryptionStatusEnums::ItemEncryptionStatus _folderEncryptionStatus = EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted;
+    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 }

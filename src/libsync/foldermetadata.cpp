@@ -758,6 +758,11 @@ const FolderMetadata::MetadataVersion FolderMetadata::latestSupportedMetadataVer
     return fromItemEncryptionStatusToMedataVersion(itemEncryptionStatusFromApiVersion);
 }
 
+quint64 FolderMetadata::counter() const
+{
+    return _counter;
+}
+
 quint64 FolderMetadata::newCounter() const
 {
     return _counter + 1;

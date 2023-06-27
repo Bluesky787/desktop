@@ -304,6 +304,19 @@ QSharedPointer<FolderMetadata> FetchAndUploadE2eeFolderMetadataJob::folderMetada
     return _folderMetadata;
 }
 
+void FetchAndUploadE2eeFolderMetadataJob::setMetadata(const QSharedPointer<FolderMetadata> &metadata)
+{
+    _folderMetadata = metadata;
+    if (metadata && metadata->isValid() && metadata->counter() == 0) {
+        _isNewMetadataCreated = true;
+    }
+}
+
+void FetchAndUploadE2eeFolderMetadataJob::setFolderId(const QByteArray &folderId)
+{
+    _folderId = folderId;
+}
+
 const QByteArray FetchAndUploadE2eeFolderMetadataJob::folderId() const
 {
     return _folderId;

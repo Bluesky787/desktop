@@ -37,10 +37,12 @@ public:
                                                  QObject *parent = nullptr);
 
     [[nodiscard]] QSharedPointer<FolderMetadata> folderMetadata() const;
+    void setMetadata(const QSharedPointer<FolderMetadata> &metadata);
 
+    void setFolderId(const QByteArray &folderId);
     [[nodiscard]] const QByteArray folderId() const;
 
-    void setFolderToken(const QByteArray &token); //use this when modifying metadata for multiple folders inside top-level one which is locked
+    void setFolderToken(const QByteArray &token); // use this when modifying metadata for multiple folders inside top-level one which is locked
     [[nodiscard]] const QByteArray folderToken() const;
 
     [[nodiscard]] const bool isUnlockRunning() const;
