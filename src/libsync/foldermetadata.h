@@ -67,7 +67,7 @@ public:
 
         static RootEncryptedFolderInfo makeDefault();
 
-        static QString createRootPath(const QString &currentPath, const QString &possibleRootPath);
+        static QString createRootPath(const QString &currentPath, const QString &topLevelPath);
 
         QString path;
         QByteArray keyForEncryption; // it can be different from keyForDecryption when new metadatKey is generated in root E2EE foler

@@ -76,16 +76,16 @@ FolderMetadata::RootEncryptedFolderInfo FolderMetadata::RootEncryptedFolderInfo:
     return RootEncryptedFolderInfo{QStringLiteral("/")};
 }
 
-QString FolderMetadata::RootEncryptedFolderInfo::createRootPath(const QString &currentPath, const QString &possibleRootPath)
+QString FolderMetadata::RootEncryptedFolderInfo::createRootPath(const QString &currentPath, const QString &topLevelPath)
 {
     const auto currentPathNoLeadingSlash = currentPath.startsWith(QLatin1Char('/'))
         ? currentPath.mid(1)
         : currentPath;
-    const auto possibleRootPathNoLeadingSlash = possibleRootPath.startsWith(QLatin1Char('/'))
-        ? possibleRootPath.mid(1)
-        : possibleRootPath;
+    const auto topLevelPathNoLeadingSlash = topLevelPath.startsWith(QLatin1Char('/'))
+        ? topLevelPath.mid(1)
+        : topLevelPath;
 
-    return currentPathNoLeadingSlash == possibleRootPathNoLeadingSlash ? QStringLiteral("/") : currentPath;
+    return currentPathNoLeadingSlash == topLevelPathNoLeadingSlash ? QStringLiteral("/") : topLevelPath;
 }
 
 bool FolderMetadata::RootEncryptedFolderInfo::keysSet() const

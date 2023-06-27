@@ -117,7 +117,7 @@ void EncryptFolderJob::slotLockForEncryptionSuccess(const QByteArray &fileId, co
         new FolderMetadata(
         _account,
         {},
-        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(rec.path(), currentPath)))
+                           FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(currentPath, rec.path())))
     );
     connect(emptyMetadata.data(), &FolderMetadata::setupComplete, this, [this, fileId, token, emptyMetadata] {
         const auto encryptedMetadata = emptyMetadata->encryptedMetadata();
