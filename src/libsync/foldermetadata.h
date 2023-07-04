@@ -63,7 +63,8 @@ public:
         explicit RootEncryptedFolderInfo(const QString &remotePath,
                                          const QByteArray &encryptionKey = {},
                                          const QByteArray &decryptionKey = {},
-                                         const QSet<QByteArray> &checksums = {});
+                                         const QSet<QByteArray> &checksums = {},
+                                         const quint64 counter = 0);
 
         static RootEncryptedFolderInfo makeDefault();
 
@@ -73,6 +74,7 @@ public:
         QByteArray keyForEncryption; // it can be different from keyForDecryption when new metadatKey is generated in root E2EE foler
         QByteArray keyForDecryption; // always storing previous metadataKey to be able to decrypt nested E2EE folders' previous metadata
         QSet<QByteArray> keyChecksums;
+        quint64 counter = 0;
         [[nodiscard]] bool keysSet() const;
     };
 

@@ -63,11 +63,13 @@ FolderMetadata::RootEncryptedFolderInfo::RootEncryptedFolderInfo()
 FolderMetadata::RootEncryptedFolderInfo::RootEncryptedFolderInfo(const QString &remotePath,
                                  const QByteArray &encryptionKey,
                                  const QByteArray &decryptionKey,
-                                 const QSet<QByteArray> &checksums):
+                                 const QSet<QByteArray> &checksums,
+                                 const quint64 counter):
     path(remotePath),
     keyForEncryption(encryptionKey),
     keyForDecryption(decryptionKey), 
-    keyChecksums(checksums)
+    keyChecksums(checksums),
+    counter(counter)
 {
 }
 
@@ -112,6 +114,7 @@ FolderMetadata::FolderMetadata(AccountPtr account,
     , _metadataKeyForEncryption(rootEncryptedFolderInfo.keyForEncryption)
     , _metadataKeyForDecryption(rootEncryptedFolderInfo.keyForDecryption)
     , _keyChecksums(rootEncryptedFolderInfo.keyChecksums)
+    , _counter(rootEncryptedFolderInfo.counter)
 {
     setupVersionFromExistingMetadata(metadata);
 
@@ -246,7 +249,11 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
 
     const auto files = cipherTextDocument.object()[filesKey].toObject();
     const auto folders = cipherTextDocument.object()[foldersKey].toObject();
-    _counter = cipherTextDocument.object()[counterKey].toVariant().value<quint64>();
+
+    const auto counterVariantFromJson = cipherTextDocument.object()[counterKey].toVariant();
+    if (counterVariantFromJson.isValid()) {
+        _counter = cipherTextDocument.object()[counterKey].toVariant().value<quint64>();
+    }
 
     for (auto it = files.constBegin(), end = files.constEnd(); it != end; ++it) {
         const auto parsedEncryptedFile = parseEncryptedFileFromJson(it.key(), it.value());
@@ -612,7 +619,7 @@ QByteArray FolderMetadata::encryptedMetadata()
         }
     }
 
-    QJsonObject cipherText = {{counterKey, QJsonValue::fromVariant(newCounter())}, {filesKey, files}, {foldersKey, folders}};
+    QJsonObject cipherText = {{filesKey, files}, {foldersKey, folders}};
 
     const auto isChecksumsArrayValid = (!_isRootEncryptedFolder && keyChecksums.isEmpty()) || (_isRootEncryptedFolder && !keyChecksums.isEmpty());
     Q_ASSERT(isChecksumsArrayValid);
@@ -622,6 +629,10 @@ QByteArray FolderMetadata::encryptedMetadata()
     }
     if (!keyChecksums.isEmpty()) {
         cipherText.insert(keyChecksumsKey, keyChecksums);
+    }
+
+    if (_isRootEncryptedFolder) {
+        cipherText.insert(counterKey, QJsonValue::fromVariant(newCounter()));
     }
 
     const QJsonDocument cipherTextDoc(cipherText);
@@ -944,6 +955,7 @@ void FolderMetadata::rootE2eeFolderMetadataReceived(const QJsonDocument &json, i
         _metadataKeyForDecryption = rootE2eeFolderMetadata->metadataKeyForDecryption();
         _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
         _keyChecksums = rootE2eeFolderMetadata->keyChecksums();
+        _counter = rootE2eeFolderMetadata->counter();
         initMetadata();
     });
 }
