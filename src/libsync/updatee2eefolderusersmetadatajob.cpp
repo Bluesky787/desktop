@@ -66,7 +66,7 @@ void UpdateE2eeFolderUsersMetadataJob::start()
         }
         connect(_account->e2e(), &ClientSideEncryption::certificateFetchedFromKeychain,
             this, &UpdateE2eeFolderUsersMetadataJob::slotCertificateFetchedFromKeychain);
-        _account->e2e()->fetchFromKeyChain(_account, _folderUserId);
+        _account->e2e()->fetchCertificateFromKeyChain(_account, _folderUserId);
         return;
     }
     slotStartE2eeMetadataJobs();
