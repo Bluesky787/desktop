@@ -241,6 +241,7 @@ public:
         const QByteArray& fileId,
         const QByteArray& b64Metadata,
         const QByteArray& lockedToken,
+        const QByteArray &signature,
         QObject *parent = nullptr);
 
 public slots:
@@ -257,6 +258,7 @@ private:
     QByteArray _fileId;
     QByteArray _b64Metadata;
     QByteArray _token;
+    QByteArray _signature;
 };
 
 

@@ -119,22 +119,7 @@ FolderMetadata::FolderMetadata(AccountPtr account,
     setupVersionFromExistingMetadata(metadata);
 
     const auto doc = QJsonDocument::fromJson(metadata);
-    qCInfo(lcCseMetadata()) << doc.toJson(QJsonDocument::Compact);
-    const auto metaDataStr = metadataStringFromOCsDocument(doc);
-    const auto metadataBase64 = metadata.toBase64();
-    //----------------------------------------
-    QByteArray metadatBase64WithBreaks;
-    int j = 0;
-    for (int i = 0; i < metadataBase64.size(); ++i) {
-        metadatBase64WithBreaks += metadataBase64[i];
-        ++j;
-        if (j > 64) {
-            j = 0;
-            metadatBase64WithBreaks += '\n';
-        }
-    }
-    const auto metadataSignature = _account->e2e()->generateSignatureCMS(metadatBase64WithBreaks);
-    //--------------------------
+    qCInfo(lcCseMetadata()) << doc.toJson(QJsonDocument::Compact);\
     if (!_isRootEncryptedFolder
         && !rootEncryptedFolderInfo.keysSet()
         && !rootEncryptedFolderInfo.path.isEmpty()) {
@@ -681,9 +666,24 @@ QByteArray FolderMetadata::encryptedMetadata()
 
     auto jsonString = internalMetadata.toJson();
 
+    const auto metadataBase64 = jsonString.toBase64();
+    //----------------------------------------
+    QByteArray metadatBase64WithBreaks;
+    int j = 0;
+    for (int i = 0; i < metadataBase64.size(); ++i) {
+        metadatBase64WithBreaks += metadataBase64[i];
+        ++j;
+        if (j > 64) {
+            j = 0;
+            metadatBase64WithBreaks += '\n';
+        }
+    }
+    _metadataSignature = _account->e2e()->generateSignatureCMS(metadatBase64WithBreaks);
+    //--------------------------
+
     _encryptedMetadataVersion = latestSupportedMetadataVersion();
 
-    return internalMetadata.toJson();
+    return jsonString;
 }
 
 QByteArray FolderMetadata::encryptedMetadataLegacy()
@@ -767,6 +767,11 @@ const FolderMetadata::MetadataVersion FolderMetadata::latestSupportedMetadataVer
 {
     const auto itemEncryptionStatusFromApiVersion = EncryptionStatusEnums::fromEndToEndEncryptionApiVersion(_account->capabilities().clientSideEncryptionVersion());
     return fromItemEncryptionStatusToMedataVersion(itemEncryptionStatusFromApiVersion);
+}
+
+QByteArray FolderMetadata::metadataSignature() const
+{
+    return _metadataSignature;
 }
 
 quint64 FolderMetadata::counter() const

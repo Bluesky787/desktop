@@ -111,11 +111,13 @@ UpdateMetadataApiJob::UpdateMetadataApiJob(const AccountPtr& account,
                                                  const QByteArray& fileId,
                                                  const QByteArray& b64Metadata,
                                                  const QByteArray& token,
+                                                 const QByteArray& signature,
                                                  QObject* parent)
 : AbstractNetworkJob(account, e2eeBaseUrl() + QStringLiteral("meta-data/") + fileId, parent)
 , _fileId(fileId),
 _b64Metadata(b64Metadata),
-_token(token)
+_token(token),
+_signature(signature)
 {
 }
 
@@ -125,6 +127,10 @@ void UpdateMetadataApiJob::start()
     req.setRawHeader("OCS-APIREQUEST", "true");
     req.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-www-form-urlencoded"));
     req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
+
+    if (!_signature.isEmpty()) {
+        req.setRawHeader(QByteArrayLiteral("X-NC-E2EE-SIGNATURE"), _signature);
+    }
 
     QUrlQuery urlQuery;
     urlQuery.addQueryItem(QStringLiteral("format"), QStringLiteral("json"));

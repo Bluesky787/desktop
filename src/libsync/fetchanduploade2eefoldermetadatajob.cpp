@@ -255,7 +255,7 @@ void FetchAndUploadE2eeFolderMetadataJob::startUploadMetadata()
         connect(job, &StoreMetaDataApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataError);
         job->start();
     } else {
-        const auto job = new UpdateMetadataApiJob(_account, _folderId, encryptedMetadata, _folderToken);
+        const auto job = new UpdateMetadataApiJob(_account, _folderId, encryptedMetadata, _folderToken, folderMetadata()->metadataSignature());
         connect(job, &UpdateMetadataApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataSuccess);
         connect(job, &UpdateMetadataApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataError);
         job->start();

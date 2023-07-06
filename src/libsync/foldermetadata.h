@@ -115,6 +115,8 @@ public:
     [[nodiscard]] quint64 counter() const;
     [[nodiscard]] quint64 newCounter() const;
 
+    [[nodiscard]] QByteArray metadataSignature() const;
+
 private:
     QByteArray encryptedMetadataLegacy();
 
@@ -197,6 +199,8 @@ private:
 
     MetadataVersion _existingMetadataVersion = MetadataVersion::VersionUndefined;
     MetadataVersion _encryptedMetadataVersion = MetadataVersion::VersionUndefined;
+
+    QByteArray _metadataSignature;
 
     QVector<EncryptedFile> _files;
 
