@@ -23,6 +23,11 @@ Q_LOGGING_CATEGORY(lcSignPublicKeyApiJob, "nextcloud.sync.networkjob.sendcsr", Q
 Q_LOGGING_CATEGORY(lcStorePrivateKeyApiJob, "nextcloud.sync.networkjob.storeprivatekey", QtInfoMsg)
 Q_LOGGING_CATEGORY(lcCseJob, "nextcloud.sync.networkjob.clientsideencrypt", QtInfoMsg)
 
+namespace
+{
+constexpr auto e2eeSignatureHeaderName = "X-NC-E2EE-SIGNATURE";
+}
+
 namespace OCC {
 
 GetMetadataApiJob::GetMetadataApiJob(const AccountPtr& account,
@@ -54,6 +59,7 @@ bool GetMetadataApiJob::finished()
         emit error(_fileId, retCode);
         return true;
     }
+    _signature = reply()->rawHeader(e2eeSignatureHeaderName);
     QJsonParseError error{};
     const auto replyData = reply()->readAll();
     auto json = QJsonDocument::fromJson(replyData, &error);
@@ -66,11 +72,13 @@ StoreMetaDataApiJob::StoreMetaDataApiJob(const AccountPtr& account,
                                                  const QByteArray& fileId,
                                                  const QByteArray &token,
                                                  const QByteArray& b64Metadata,
+                                                 const QByteArray &signature,
                                                  QObject* parent)
 : AbstractNetworkJob(account, e2eeBaseUrl() + QStringLiteral("meta-data/") + fileId, parent),
 _fileId(fileId),
 _b64Metadata(b64Metadata),
-_token(token)
+_token(token),
+_signature(signature)
 {
 }
 
@@ -80,6 +88,9 @@ void StoreMetaDataApiJob::start()
     req.setRawHeader("OCS-APIREQUEST", "true");
     req.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-www-form-urlencoded"));
     req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
+    if (!_signature.isEmpty()) {
+        req.setRawHeader(e2eeSignatureHeaderName, _signature);
+    }
     QUrlQuery query;
     query.addQueryItem(QLatin1String("format"), QLatin1String("json"));
     QUrl url = Utility::concatUrlPath(account()->url(), path());
@@ -100,6 +111,7 @@ bool StoreMetaDataApiJob::finished()
 		if (retCode != 200) {
 			qCInfo(lcCseJob()) << "error sending the metadata" << path() << errorString() << retCode;
 			emit error(_fileId, retCode);
+            return false;
 		}
 
 		qCInfo(lcCseJob()) << "Metadata submitted to the server successfully";
@@ -129,7 +141,7 @@ void UpdateMetadataApiJob::start()
     req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
 
     if (!_signature.isEmpty()) {
-        req.setRawHeader(QByteArrayLiteral("X-NC-E2EE-SIGNATURE"), _signature);
+        req.setRawHeader(e2eeSignatureHeaderName, _signature);
     }
 
     QUrlQuery urlQuery;

@@ -678,7 +678,7 @@ QByteArray FolderMetadata::encryptedMetadata()
             metadatBase64WithBreaks += '\n';
         }
     }
-    _metadataSignature = _account->e2e()->generateSignatureCMS(metadatBase64WithBreaks);
+    _metadataSignature = _account->e2e()->generateSignatureCMS(metadatBase64WithBreaks).toBase64();
     //--------------------------
 
     _encryptedMetadataVersion = latestSupportedMetadataVersion();

@@ -214,6 +214,7 @@ public:
         const QByteArray& fileId,
         const QByteArray &token,
         const QByteArray& b64Metadata,
+        const QByteArray &signature,
         QObject *parent = nullptr);
 
 public slots:
@@ -230,6 +231,7 @@ private:
     QByteArray _fileId;
     QByteArray _token;
     QByteArray _b64Metadata;
+    QByteArray _signature;
 };
 
 class OWNCLOUDSYNC_EXPORT UpdateMetadataApiJob : public AbstractNetworkJob
@@ -283,6 +285,7 @@ signals:
 
 private:
     QByteArray _fileId;
+    QByteArray _signature;
 };
 
 class OWNCLOUDSYNC_EXPORT DeleteMetadataApiJob : public AbstractNetworkJob

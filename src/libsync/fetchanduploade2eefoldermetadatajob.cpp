@@ -250,7 +250,7 @@ void FetchAndUploadE2eeFolderMetadataJob::startUploadMetadata()
 
     const auto encryptedMetadata = folderMetadata()->encryptedMetadata();
     if (_isNewMetadataCreated) {
-        const auto job = new StoreMetaDataApiJob(_account, _folderId, _folderToken, encryptedMetadata);
+        const auto job = new StoreMetaDataApiJob(_account, _folderId, _folderToken, encryptedMetadata, folderMetadata()->metadataSignature());
         connect(job, &StoreMetaDataApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataSuccess);
         connect(job, &StoreMetaDataApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotUploadMetadataError);
         job->start();
