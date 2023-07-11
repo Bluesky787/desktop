@@ -58,6 +58,7 @@ private:
     void startUploadMetadata();
     void startFetchMetadata();
     void fetchFolderEncryptedId();
+    bool validateBeforeLock();
 
 private slots:
     void slotFolderEncryptedIdReceived(const QStringList &list);

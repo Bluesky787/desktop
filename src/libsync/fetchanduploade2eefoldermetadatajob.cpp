@@ -74,16 +74,7 @@ void FetchAndUploadE2eeFolderMetadataJob::uploadMetadata(bool keepLock)
 
 void FetchAndUploadE2eeFolderMetadataJob::lockFolder()
 {
-    Q_ASSERT(!_isFolderLocked);
-    if (_isFolderLocked) {
-        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error locking folder" << _folderId << "already locked";
-        emit uploadFinished(-1, tr("Error locking folder."));
-        return;
-    }
-
-    if (!folderMetadata() || !folderMetadata()->isValid()) {
-        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error locking folder" << _folderId << "invalid or null metadata";
-        emit uploadFinished(-1, tr("Error locking folder."));
+    if (!validateBeforeLock()) {
         return;
     }
 
@@ -91,7 +82,7 @@ void FetchAndUploadE2eeFolderMetadataJob::lockFolder()
     connect(lockJob, &LockEncryptFolderApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedSuccessfully);
     connect(lockJob, &LockEncryptFolderApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError);
     if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
-        lockJob->setCounter(folderMetadata()->newCounter());
+        lockJob->setCounter(folderMetadata()->newCounterForTopLevelMetadata());
     }
     lockJob->start();
 }
@@ -112,6 +103,29 @@ void FetchAndUploadE2eeFolderMetadataJob::fetchFolderEncryptedId()
     connect(job, &LsColJob::directoryListingSubfolders, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderEncryptedIdReceived);
     connect(job, &LsColJob::finishedWithError, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderEncryptedIdError);
     job->start();
+}
+
+bool FetchAndUploadE2eeFolderMetadataJob::validateBeforeLock()
+{
+    //Q_ASSERT(!_isFolderLocked && folderMetadata() && folderMetadata()->isValid() && folderMetadata()->isRootEncryptedFolder());
+    if (_isFolderLocked) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error locking folder" << _folderId << "already locked";
+        emit uploadFinished(-1, tr("Error locking folder."));
+        return false;
+    }
+
+    if (!folderMetadata() || !folderMetadata()->isValid()) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error locking folder" << _folderId << "invalid or null metadata";
+        emit uploadFinished(-1, tr("Error locking folder."));
+        return false;
+    }
+
+    if (!folderMetadata()->isRootEncryptedFolder()) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error locking folder" << _folderId << "as it is not a top level folder";
+        emit uploadFinished(-1, tr("Error locking folder."));
+        return false;
+    }
+    return true;
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::slotFolderEncryptedIdReceived(const QStringList &list)
@@ -306,9 +320,12 @@ QSharedPointer<FolderMetadata> FetchAndUploadE2eeFolderMetadataJob::folderMetada
 
 void FetchAndUploadE2eeFolderMetadataJob::setMetadata(const QSharedPointer<FolderMetadata> &metadata)
 {
-    _folderMetadata = metadata;
-    if (metadata && metadata->isValid() && metadata->counter() == 0) {
-        _isNewMetadataCreated = true;
+    Q_ASSERT(metadata && metadata->isValid());
+    if (metadata && metadata->isValid()) {
+        _folderMetadata = metadata;
+        _isNewMetadataCreated = metadata->initialMetadata().isEmpty();
+    } else {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "setMetadata has invalid argument";
     }
 }
 

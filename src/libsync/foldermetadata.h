@@ -91,6 +91,8 @@ public:
 
     [[nodiscard]] bool isFileDropPresent() const;
 
+    [[nodiscard]] bool isRootEncryptedFolder() const;
+
     [[nodiscard]] bool encryptedMetadataNeedUpdate() const;
 
     [[nodiscard]] bool moveFromFileDropToFiles();
@@ -112,10 +114,12 @@ public:
 
     [[nodiscard]] bool isVersion2AndUp() const;
 
-    [[nodiscard]] quint64 counter() const;
-    [[nodiscard]] quint64 newCounter() const;
+    [[nodiscard]] quint64 counterForTopLevelMetadata() const;
+    [[nodiscard]] quint64 newCounterForTopLevelMetadata() const;
 
     [[nodiscard]] QByteArray metadataSignature() const;
+
+    [[nodiscard]] QByteArray initialMetadata() const;
 
 private:
     QByteArray encryptedMetadataLegacy();
@@ -140,6 +144,8 @@ private:
 
     static EncryptionStatusEnums::ItemEncryptionStatus fromMedataVersionToItemEncryptionStatus(const MetadataVersion &metadataVersion);
     static MetadataVersion fromItemEncryptionStatusToMedataVersion(const EncryptionStatusEnums::ItemEncryptionStatus &encryptionStatus);
+
+    static QByteArray prepareMetadataForSignature(const QJsonDocument &fullMetadata);
 
 public slots:
     void addEncryptedFile(const EncryptedFile &f);
@@ -195,7 +201,7 @@ private:
 
     QHash<QString, FolderUser> _folderUsers;
 
-    quint64 _counter = 0;
+    quint64 _counterForTopLevelMetadata = 0;
 
     MetadataVersion _existingMetadataVersion = MetadataVersion::VersionUndefined;
     MetadataVersion _encryptedMetadataVersion = MetadataVersion::VersionUndefined;
