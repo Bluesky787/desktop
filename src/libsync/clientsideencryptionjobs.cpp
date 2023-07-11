@@ -37,6 +37,11 @@ GetMetadataApiJob::GetMetadataApiJob(const AccountPtr& account,
 {
 }
 
+const QByteArray &GetMetadataApiJob::signature() const
+{
+    return _signature;
+}
+
 void GetMetadataApiJob::start()
 {
     QNetworkRequest req;

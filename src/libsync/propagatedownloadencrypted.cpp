@@ -78,16 +78,26 @@ void PropagateDownloadEncrypted::checkFolderEncryptedMetadata(const QJsonDocumen
 {
   qCDebug(lcPropagateDownloadEncrypted) << "Metadata Received reading"
                                         << _item->_instruction << _item->_file << _item->_encryptedFileName;
+
+  const auto job = qobject_cast<GetMetadataApiJob *>(sender());
+  Q_ASSERT(job);
+  if (!job) {
+      qCDebug(lcPropagateDownloadEncrypted) << "checkFolderEncryptedMetadata must be called from GetMetadataApiJob's signal";
+      emit failed();
+      return;
+  }
+
   SyncJournalFileRecord rec;
   if (!_propagator->_journal->getRootE2eFolderRecord(_parentPathInDb, &rec) || !rec.isValid()) {
       emit failed();
       return;
   }
 
-  const QSharedPointer<FolderMetadata> metadata(new FolderMetadata(
+  const auto metadata(QSharedPointer<FolderMetadata>::create(
       _propagator->account(),
       json.toJson(QJsonDocument::Compact),
-      FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_item->_file, rec.path())))
+      FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_item->_file, rec.path())),
+      job->signature())
   );
 
   const auto filename = _info.fileName();

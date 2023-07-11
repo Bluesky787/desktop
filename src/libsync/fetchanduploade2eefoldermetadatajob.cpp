@@ -120,11 +120,12 @@ bool FetchAndUploadE2eeFolderMetadataJob::validateBeforeLock()
         return false;
     }
 
-    if (!folderMetadata()->isRootEncryptedFolder()) {
+    // normally, we should allow locking any nested folder to update its metadata, yet, with the new V2 architecture, this is something we might want to disallow
+    /*if (!folderMetadata()->isRootEncryptedFolder()) {
         qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error locking folder" << _folderId << "as it is not a top level folder";
         emit uploadFinished(-1, tr("Error locking folder."));
         return false;
-    }
+    }*/
     return true;
 }
 
@@ -153,6 +154,14 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocume
 {
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Metadata Received, parsing it and decrypting" << json.toVariant();
 
+    const auto job = qobject_cast<GetMetadataApiJob *>(sender());
+    Q_ASSERT(job);
+    if (!job) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "slotMetadataReceived must be called from GetMetadataApiJob's signal";
+        emit fetchFinished(statusCode, tr("Error fetching metadata."));
+        return;
+    }
+
     _allowEmptyMetadata = false;
 
     if (statusCode != 200 && statusCode != 404) {
@@ -164,7 +173,7 @@ void FetchAndUploadE2eeFolderMetadataJob::slotMetadataReceived(const QJsonDocume
 
     const auto rawMetadata = statusCode == 404
         ? QByteArray{} : json.toJson(QJsonDocument::Compact);
-    const auto metadata(QSharedPointer<FolderMetadata>::create(_account, rawMetadata, _rootEncryptedFolderInfo));
+    const auto metadata(QSharedPointer<FolderMetadata>::create(_account, rawMetadata, _rootEncryptedFolderInfo, job->signature()));
     connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, statusCode, metadata] {
         if (!metadata->isValid()) {
             qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error parsing or decrypting metadata for folder" << _folderPath;

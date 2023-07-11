@@ -83,6 +83,7 @@ public:
     FolderMetadata(AccountPtr account,
                    const QByteArray &metadata,
                    const RootEncryptedFolderInfo &rootEncryptedFolderInfo,
+                   const QByteArray &signature,
                    QObject *parent = nullptr);
 
     [[nodiscard]] QVector<EncryptedFile> files() const;
@@ -207,6 +208,8 @@ private:
     MetadataVersion _encryptedMetadataVersion = MetadataVersion::VersionUndefined;
 
     QByteArray _metadataSignature;
+
+    QByteArray _initialSignature;
 
     QVector<EncryptedFile> _files;
 

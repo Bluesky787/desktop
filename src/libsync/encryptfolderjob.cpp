@@ -110,10 +110,13 @@ void EncryptFolderJob::uploadMetadata()
         emit finished(Error, EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted);
         return;
     }
-    QSharedPointer<FolderMetadata> emptyMetadata(
-        new FolderMetadata(_account,
-                           {},
-                           FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(currentPath, rec.path()))));
+
+    auto emptyMetadata(QSharedPointer<FolderMetadata>::create(
+        _account,
+        QByteArray{},
+        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(currentPath, rec.path())),
+        QByteArray{}));
+
     connect(emptyMetadata.data(), &FolderMetadata::setupComplete, this, [this, emptyMetadata] {
         const auto encryptedMetadata = !emptyMetadata->isValid() ? QByteArray{} : emptyMetadata->encryptedMetadata();
         if (encryptedMetadata.isEmpty()) {

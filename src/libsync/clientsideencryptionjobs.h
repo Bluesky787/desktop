@@ -273,6 +273,8 @@ public:
         const QByteArray& fileId,
         QObject *parent = nullptr);
 
+    [[nodiscard]] const QByteArray &signature() const;
+
 public slots:
     void start() override;
 

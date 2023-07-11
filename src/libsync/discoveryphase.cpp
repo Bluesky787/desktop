@@ -671,6 +671,15 @@ void DiscoverySingleDirectoryJob::metadataReceived(const QJsonDocument &json, in
     qCDebug(lcDiscovery) << "Metadata received, applying it to the result list";
     Q_ASSERT(_subPath.startsWith('/'));
 
+    const auto job = qobject_cast<GetMetadataApiJob *>(sender());
+    Q_ASSERT(job);
+    if (!job) {
+        qCDebug(lcDiscovery) << "metadataReceived must be called from GetMetadataApiJob's signal";
+        emit finished(HttpError{0, tr("Encrypted metadata setup error!")});
+        deleteLater();
+        return;
+    }
+
     QString topLevelFolderPath;
 
     for (const QString &topLevelPath : _listRootE2eeFolders) {
@@ -689,7 +698,10 @@ void DiscoverySingleDirectoryJob::metadataReceived(const QJsonDocument &json, in
         topLevelFolderPath = QStringLiteral("/");
     }
 
-    _e2EeFolderMetadata.reset(new FolderMetadata(_account, statusCode == 404 ? QByteArray{} : json.toJson(QJsonDocument::Compact), FolderMetadata::RootEncryptedFolderInfo(topLevelFolderPath)));
+    _e2EeFolderMetadata.reset(new FolderMetadata(_account,
+                                                 statusCode == 404 ? QByteArray{} : json.toJson(QJsonDocument::Compact),
+                                                 FolderMetadata::RootEncryptedFolderInfo(topLevelFolderPath),
+                                                 job->signature()));
     connect(_e2EeFolderMetadata.data(), &FolderMetadata::setupComplete, this, [this] {
         if (!_e2EeFolderMetadata->isValid()) {
             emit finished(HttpError{0, tr("Encrypted metadata setup error!")});

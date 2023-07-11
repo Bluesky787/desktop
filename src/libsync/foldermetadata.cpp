@@ -106,6 +106,7 @@ FolderMetadata::FolderMetadata(AccountPtr account)
 FolderMetadata::FolderMetadata(AccountPtr account,
                                const QByteArray &metadata,
                                const RootEncryptedFolderInfo &rootEncryptedFolderInfo,
+                               const QByteArray &signature,
                                QObject *parent)
     : QObject(parent)
     , _account(account)
@@ -114,6 +115,8 @@ FolderMetadata::FolderMetadata(AccountPtr account,
     , _metadataKeyForEncryption(rootEncryptedFolderInfo.keyForEncryption)
     , _metadataKeyForDecryption(rootEncryptedFolderInfo.keyForDecryption)
     , _keyChecksums(rootEncryptedFolderInfo.keyChecksums)
+    , _counterForTopLevelMetadata(rootEncryptedFolderInfo.counter)
+    , _initialSignature(signature)
 {
     setupVersionFromExistingMetadata(metadata);
 
@@ -149,6 +152,13 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
 {
     const auto doc = QJsonDocument::fromJson(metadata);
     qCDebug(lcCseMetadata()) << "Got existing metadata:" << doc.toJson(QJsonDocument::Compact);
+
+    if (_isRootEncryptedFolder && !_initialSignature.isEmpty()) {
+        const auto metadataForSignature = prepareMetadataForSignature(doc);
+
+        auto verifyResult = _account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignature);
+        verifyResult = false;
+    }
 
     if (_existingMetadataVersion < MetadataVersion::Version1) {
         qCDebug(lcCseMetadata()) << "Could not setup metadata. Incorrect version" << _existingMetadataVersion;
@@ -668,7 +678,7 @@ QByteArray FolderMetadata::encryptedMetadata()
     auto jsonString = internalMetadata.toJson();
 
     const auto metadataForSignature = prepareMetadataForSignature(internalMetadata);
-    _metadataSignature = _account->e2e()->generateSignatureCMS(metadataForSignature.toBase64()).toBase64();
+    _metadataSignature = _account->e2e()->generateSignatureCMS(metadataForSignature).toBase64();
 
     _encryptedMetadataVersion = latestSupportedMetadataVersion();
 
@@ -770,19 +780,19 @@ QByteArray FolderMetadata::initialMetadata() const
 
 quint64 FolderMetadata::counterForTopLevelMetadata() const
 {
-    Q_ASSERT(_isRootEncryptedFolder);
+    /*Q_ASSERT(_isRootEncryptedFolder);
     if (!_isRootEncryptedFolder) {
         qCDebug(lcCseMetadata()) << "Counter is only applicable for top level metadata.";
-    }
+    }*/
     return _counterForTopLevelMetadata;
 }
 
 quint64 FolderMetadata::newCounterForTopLevelMetadata() const
 {
-    Q_ASSERT(_isRootEncryptedFolder);
+    /*Q_ASSERT(_isRootEncryptedFolder);
     if (!_isRootEncryptedFolder) {
         qCDebug(lcCseMetadata()) << "Counter is only applicable for top level metadata.";
-    }
+    }*/
     return _counterForTopLevelMetadata + 1;
 }
 
@@ -836,7 +846,7 @@ QByteArray FolderMetadata::prepareMetadataForSignature(const QJsonDocument &full
 
     metdataModified.setObject(modifiedObject);
     auto jsonString = metdataModified.toJson();
-    return metdataModified.toJson();
+    return metdataModified.toBinaryData();
 }
 
 void FolderMetadata::addEncryptedFile(const EncryptedFile &f) {
@@ -971,12 +981,20 @@ void FolderMetadata::rotE2eeFolderEncryptedMetadataReceivedError(const QByteArra
 
 void FolderMetadata::rootE2eeFolderMetadataReceived(const QJsonDocument &json, int statusCode)
 {
+    const auto job = qobject_cast<GetMetadataApiJob *>(sender());
+    Q_ASSERT(job);
+    if (!job) {
+        qCDebug(lcCseMetadata()) << "rootE2eeFolderMetadataReceived must be called from GetMetadataApiJob's signal";
+        initMetadata();
+        return;
+    }
+
     if (json.isEmpty()) {
         initMetadata();
         return;
     }
 
-    QSharedPointer<FolderMetadata> rootE2eeFolderMetadata(new FolderMetadata(_account, json.toJson(QJsonDocument::Compact), RootEncryptedFolderInfo::makeDefault()));
+    const auto rootE2eeFolderMetadata(QSharedPointer<FolderMetadata>::create(_account, json.toJson(QJsonDocument::Compact), RootEncryptedFolderInfo::makeDefault(), job->signature()));
     connect(rootE2eeFolderMetadata.data(), &FolderMetadata::setupComplete, this, [this, rootE2eeFolderMetadata]() {
         if (!rootE2eeFolderMetadata->isValid() || !rootE2eeFolderMetadata->isVersion2AndUp()) {
             initMetadata();
@@ -992,6 +1010,7 @@ void FolderMetadata::rootE2eeFolderMetadataReceived(const QJsonDocument &json, i
         _metadataKeyForDecryption = rootE2eeFolderMetadata->metadataKeyForDecryption();
         _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
         _keyChecksums = rootE2eeFolderMetadata->keyChecksums();
+        _counterForTopLevelMetadata = rootE2eeFolderMetadata->counterForTopLevelMetadata();
         initMetadata();
     });
 }

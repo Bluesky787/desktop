@@ -199,16 +199,26 @@ void OCC::HydrationJob::slotCheckFolderEncryptedMetadata(const QJsonDocument &js
 {
     // TODO: the following code is borrowed from PropagateDownloadEncrypted (see HydrationJob::onNewConnection() for explanation of next steps)
     qCDebug(lcHydration) << "Metadata Received reading" << e2eMangledName();
+
+    const auto job = qobject_cast<GetMetadataApiJob *>(sender());
+    Q_ASSERT(job);
+    if (!job) {
+        qCDebug(lcHydration) << "slotCheckFolderEncryptedMetadata must be called from GetMetadataApiJob's signal";
+        emitFinished(Error);
+        return;
+    }
+
     const auto filename = e2eMangledName();
     SyncJournalFileRecord rec;
     if (!_journal->getRootE2eFolderRecord(_remoteParentPath, &rec) || !rec.isValid()) {
         emitFinished(Error);
         return;
     }
-    const QSharedPointer<FolderMetadata> metadata(new FolderMetadata(
+    const auto metadata(QSharedPointer<FolderMetadata>::create(
         _account,
         json.toJson(QJsonDocument::Compact),
-        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(rec.path(), _remoteParentPath)))
+        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(rec.path(), _remoteParentPath)),
+        job->signature())
     );
     connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, metadata, filename] {
         if (metadata->isValid()) {
