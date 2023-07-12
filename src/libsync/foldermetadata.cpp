@@ -115,7 +115,6 @@ FolderMetadata::FolderMetadata(AccountPtr account,
     , _metadataKeyForEncryption(rootEncryptedFolderInfo.keyForEncryption)
     , _metadataKeyForDecryption(rootEncryptedFolderInfo.keyForDecryption)
     , _keyChecksums(rootEncryptedFolderInfo.keyChecksums)
-    , _counterForTopLevelMetadata(rootEncryptedFolderInfo.counter)
     , _initialSignature(signature)
 {
     setupVersionFromExistingMetadata(metadata);
@@ -215,6 +214,12 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     }
     
     const auto metadataObj = metaDataDoc.object()[metadataJsonKey].toObject();
+
+    const auto counterVariantFromJson = metadataObj[counterKey].toVariant();
+    if (counterVariantFromJson.isValid() && counterVariantFromJson.canConvert<quint64>()) {
+        _counter = counterVariantFromJson.value<quint64>();
+    }
+
     _metadataNonce = QByteArray::fromBase64(metadataObj[nonceKey].toString().toLocal8Bit());
     const auto cipherTextEncrypted = metadataObj[cipherTextKey].toString().toLocal8Bit();
     const auto cipherTextDecrypted = EncryptionHelper::decryptThenUnGzipData(metadataKeyForDecryption(), QByteArray::fromBase64(cipherTextEncrypted), _metadataNonce);
@@ -243,13 +248,6 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
 
     const auto files = cipherTextDocument.object()[filesKey].toObject();
     const auto folders = cipherTextDocument.object()[foldersKey].toObject();
-
-    if (_isRootEncryptedFolder) {
-        const auto counterVariantFromJson = cipherTextDocument.object()[counterKey].toVariant();
-        if (counterVariantFromJson.isValid() && counterVariantFromJson.canConvert<quint64>()) {
-            _counterForTopLevelMetadata = cipherTextDocument.object()[counterKey].toVariant().value<quint64>();
-        }
-    }
 
     for (auto it = files.constBegin(), end = files.constEnd(); it != end; ++it) {
         const auto parsedEncryptedFile = parseEncryptedFileFromJson(it.key(), it.value());
@@ -627,10 +625,6 @@ QByteArray FolderMetadata::encryptedMetadata()
         cipherText.insert(keyChecksumsKey, keyChecksums);
     }
 
-    if (_isRootEncryptedFolder) {
-        cipherText.insert(counterKey, QJsonValue::fromVariant(newCounterForTopLevelMetadata()));
-    }
-
     const QJsonDocument cipherTextDoc(cipherText);
 
     QByteArray authenticationTag;
@@ -638,6 +632,7 @@ QByteArray FolderMetadata::encryptedMetadata()
     const auto encryptedCipherText = EncryptionHelper::gzipThenEncryptData(metadataKeyForEncryption(), cipherTextDoc.toJson(QJsonDocument::Compact), initializationVector, authenticationTag).toBase64();
     const QJsonObject metadata{{cipherTextKey, QJsonValue::fromVariant(encryptedCipherText)},
                                {nonceKey, QJsonValue::fromVariant(initializationVector.toBase64())},
+                               {counterKey, QJsonValue::fromVariant(newCounter())},
                                {authenticationTagKey, QJsonValue::fromVariant(authenticationTag.toBase64())}};
 
     QJsonObject metaObject = {{metadataJsonKey, metadata}, {versionKey, QString::number(_account->capabilities().clientSideEncryptionVersion(), 'g', 2)}};
@@ -778,22 +773,14 @@ QByteArray FolderMetadata::initialMetadata() const
     return _initialMetadata;
 }
 
-quint64 FolderMetadata::counterForTopLevelMetadata() const
+quint64 FolderMetadata::counter() const
 {
-    /*Q_ASSERT(_isRootEncryptedFolder);
-    if (!_isRootEncryptedFolder) {
-        qCDebug(lcCseMetadata()) << "Counter is only applicable for top level metadata.";
-    }*/
-    return _counterForTopLevelMetadata;
+    return _counter;
 }
 
-quint64 FolderMetadata::newCounterForTopLevelMetadata() const
+quint64 FolderMetadata::newCounter() const
 {
-    /*Q_ASSERT(_isRootEncryptedFolder);
-    if (!_isRootEncryptedFolder) {
-        qCDebug(lcCseMetadata()) << "Counter is only applicable for top level metadata.";
-    }*/
-    return _counterForTopLevelMetadata + 1;
+    return _counter + 1;
 }
 
 EncryptionStatusEnums::ItemEncryptionStatus FolderMetadata::fromMedataVersionToItemEncryptionStatus(const MetadataVersion &metadataVersion)
@@ -1010,7 +997,6 @@ void FolderMetadata::rootE2eeFolderMetadataReceived(const QJsonDocument &json, i
         _metadataKeyForDecryption = rootE2eeFolderMetadata->metadataKeyForDecryption();
         _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
         _keyChecksums = rootE2eeFolderMetadata->keyChecksums();
-        _counterForTopLevelMetadata = rootE2eeFolderMetadata->counterForTopLevelMetadata();
         initMetadata();
     });
 }

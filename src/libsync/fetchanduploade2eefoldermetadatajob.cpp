@@ -82,7 +82,7 @@ void FetchAndUploadE2eeFolderMetadataJob::lockFolder()
     connect(lockJob, &LockEncryptFolderApiJob::success, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedSuccessfully);
     connect(lockJob, &LockEncryptFolderApiJob::error, this, &FetchAndUploadE2eeFolderMetadataJob::slotFolderLockedError);
     if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
-        lockJob->setCounter(folderMetadata()->newCounterForTopLevelMetadata());
+        lockJob->setCounter(folderMetadata()->newCounter());
     }
     lockJob->start();
 }
