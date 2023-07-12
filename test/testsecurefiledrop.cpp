@@ -97,10 +97,12 @@ private slots:
                         const QString folderRemotePath = pathSplit.last() + QStringLiteral("/");
                         _parsedMetadataWithFileDrop.reset(new FolderMetadata(_fakeFolder.syncEngine().account(),
                                                                              jsonDoc.toJson(),
-                                                                             FolderMetadata::RootEncryptedFolderInfo(folderRemotePath)));
+                                                                             FolderMetadata::RootEncryptedFolderInfo(folderRemotePath),
+                                                                             {}));
                         _parsedMetadataAfterProcessingFileDrop.reset(new FolderMetadata(_fakeFolder.syncEngine().account(),
                                                                                         jsonDoc.toJson(),
-                                                                                        FolderMetadata::RootEncryptedFolderInfo(folderRemotePath)));
+                                                                                        FolderMetadata::RootEncryptedFolderInfo(folderRemotePath),
+                                                                                        {}));
 
                         QSignalSpy parsedMetadataWithFileDropSetupSpy(_parsedMetadataWithFileDrop.data(), &FolderMetadata::setupComplete);
                         parsedMetadataWithFileDropSetupSpy.wait(3000);
