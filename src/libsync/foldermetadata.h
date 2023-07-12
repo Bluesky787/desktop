@@ -122,6 +122,10 @@ public:
 
     [[nodiscard]] QByteArray initialMetadata() const;
 
+    [[nodiscard]] bool isInitialDeletedFlagSet() const;
+
+    void flagDeletedSet();
+
 private:
     QByteArray encryptedMetadataLegacy();
 
@@ -211,9 +215,13 @@ private:
 
     QByteArray _initialSignature;
 
+    bool _isInitialDeletedFlagSet = false;
+
     QVector<EncryptedFile> _files;
 
     bool _isMetadataValid = false;
+
+    bool _isFlagDeletedSet = false;
 };
 
 } // namespace OCC

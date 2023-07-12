@@ -99,6 +99,40 @@ void BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(const QByteArr
     qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Folder id" << folderId << "successfully unlocked";
 }
 
+void BasePropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinishedRootDeletion(int statusCode, const QString &message)
+{
+    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Metadata Received, Preparing it for the new file." << message;
+
+    if (statusCode != 200) {
+        qCritical(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "fetch metadata finished with error" << statusCode << message;
+        taskFailed();
+        return;
+    }
+
+    if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata() || !_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->isValid()) {
+        qCritical(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "fetch metadata finished with error" << statusCode << message;
+        taskFailed();
+        return;
+    }
+
+    const auto metadatToModify = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    metadatToModify->flagDeletedSet();
+    _fetchAndUploadE2eeFolderMetadataJob->setMetadata(metadatToModify);
+    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
+}
+
+void BasePropagateRemoteDeleteEncrypted::slotUpdateMetadataJobFinishedRootDeletion(int statusCode, const QString &message)
+{
+    if (statusCode != 200) {
+        qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Update metadata error for folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId() << "with error" << message;
+        qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED()) << "Unlocking the folder.";
+        taskFailed();
+        return;
+    }
+    Q_ASSERT(!_fullFolderRemotePath.isEmpty());
+    runDeleteJob(_fullFolderRemotePath);
+}
+
 void BasePropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished()
 {
     auto *deleteJob = qobject_cast<DeleteJob *>(QObject::sender());
@@ -152,8 +186,39 @@ void BasePropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished()
 void BasePropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &filename)
 {
     qCInfo(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Deleting nested encrypted item" << filename;
+    _fullFolderRemotePath = _propagator->fullRemotePath(filename);
+    if (_fetchAndUploadE2eeFolderMetadataJob && _fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
+        runDeleteJob(_fullFolderRemotePath);
+        return;
+    }
 
-    const auto deleteJob = new DeleteJob(_propagator->account(), _propagator->fullRemotePath(filename), this);
+    SyncJournalFileRecord rec;
+    if (!_propagator->_journal->getRootE2eFolderRecord(_fullFolderRemotePath, &rec) || !rec.isValid()) {
+        taskFailed();
+        return;
+    }
+
+    _fetchAndUploadE2eeFolderMetadataJob.reset(
+        new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(), _fullFolderRemotePath, _propagator->_journal, rec.path()));
+
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            this,
+            &BasePropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinishedRootDeletion);
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+            &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+            this,
+            &BasePropagateRemoteDeleteEncrypted::slotUpdateMetadataJobFinishedRootDeletion);
+    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata();
+}
+
+void BasePropagateRemoteDeleteEncrypted::runDeleteJob(const QString &fullRemotePath)
+{
+    Q_ASSERT(_fetchAndUploadE2eeFolderMetadataJob && _fetchAndUploadE2eeFolderMetadataJob->isFolderLocked());
+    if (!_fetchAndUploadE2eeFolderMetadataJob || !_fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
+        qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "invalid _fetchAndUploadE2eeFolderMetadataJob instance!";
+    }
+    const auto deleteJob = new DeleteJob(_propagator->account(), fullRemotePath, this);
     deleteJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
 
     connect(deleteJob, &DeleteJob::finishedSignal, this, &BasePropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished);

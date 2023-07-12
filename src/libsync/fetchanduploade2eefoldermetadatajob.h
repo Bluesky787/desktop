@@ -51,10 +51,10 @@ public:
     void fetchMetadata(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata = false);
     void fetchMetadata(bool allowEmptyMetadata = false);
     void uploadMetadata(bool keepLock = false);
+    void lockFolder();
     void unlockFolder(bool success = true);
 
 private:
-    void lockFolder();
     void startUploadMetadata();
     void startFetchMetadata();
     void fetchFolderEncryptedId();
