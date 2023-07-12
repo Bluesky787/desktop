@@ -218,6 +218,9 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
 
     const auto counterVariantFromJson = metadataObj[counterKey].toVariant();
     if (counterVariantFromJson.isValid() && counterVariantFromJson.canConvert<quint64>()) {
+        //TODO: We need to check counter: new counter must be greater than locally stored counter
+        // What does that mean? We store the counter in metadata, should we now store it in local database as we do for all file records in SyncJournal?
+        // What if metadata was not updated for a while? The counter will then not be greater than locally stored (in SyncJournal DB?)
         _counter = counterVariantFromJson.value<quint64>();
     }
 
@@ -238,6 +241,8 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     for (auto it = keyCheckSums.constBegin(); it != keyCheckSums.constEnd(); ++it) {
         const auto keyChecksum = it->toVariant().toString().toUtf8();
         if (!keyChecksum.isEmpty()) {
+            //TODO: check that no hash has been removed from the keyChecksums
+            // How do we check that?
             _keyChecksums.insert(keyChecksum);
         }
     }
@@ -1093,8 +1098,9 @@ void FolderMetadata::createNewMetadataKeyForEncryption()
     }
     if (!_metadataKeyForEncryption.isEmpty()) {
         const auto checksumToRemove = calcSha256(_metadataKeyForEncryption);
+        // TODO: since we are not supposed to remove checksums, we might as well get rid of _keyChecksumsRemoved
         _keyChecksumsRemoved.insert(checksumToRemove);
-        _keyChecksums.remove(checksumToRemove);
+        //_keyChecksums.remove(checksumToRemove);
     }
     _metadataKeyForEncryption = EncryptionHelper::generateRandom(metadataKeySize);
     if (!_metadataKeyForEncryption.isEmpty()) {
