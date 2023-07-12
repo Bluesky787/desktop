@@ -152,13 +152,6 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     const auto doc = QJsonDocument::fromJson(metadata);
     qCDebug(lcCseMetadata()) << "Got existing metadata:" << doc.toJson(QJsonDocument::Compact);
 
-    if (_isRootEncryptedFolder && !_initialSignature.isEmpty()) {
-        const auto metadataForSignature = prepareMetadataForSignature(doc);
-
-        auto verifyResult = _account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignature);
-        verifyResult = false;
-    }
-
     if (_existingMetadataVersion < MetadataVersion::Version1) {
         qCDebug(lcCseMetadata()) << "Could not setup metadata. Incorrect version" << _existingMetadataVersion;
         return;
@@ -171,6 +164,14 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     qCDebug(lcCseMetadata()) << "Setting up latest metadata version" << _existingMetadataVersion;
     const auto metaDataStr = metadataStringFromOCsDocument(doc);
     const auto metaDataDoc = QJsonDocument::fromJson(metaDataStr.toLocal8Bit());
+
+    if (_isRootEncryptedFolder && !_initialSignature.isEmpty()) {
+        const auto metadataForSignature = prepareMetadataForSignature(metaDataDoc);
+        const auto metadataForSignatureBase64 = metadataForSignature.toBase64();
+
+        auto verifyResult = _account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignatureBase64);
+        verifyResult = false;
+    }
 
     const auto fileDropObject = metaDataDoc.object().value(filedropKey).toObject();
     _fileDropCipherTextEncryptedAndBase64 = fileDropObject.value(cipherTextKey).toString().toLocal8Bit();
@@ -673,7 +674,7 @@ QByteArray FolderMetadata::encryptedMetadata()
     auto jsonString = internalMetadata.toJson();
 
     const auto metadataForSignature = prepareMetadataForSignature(internalMetadata);
-    _metadataSignature = _account->e2e()->generateSignatureCMS(metadataForSignature).toBase64();
+    _metadataSignature = _account->e2e()->generateSignatureCMS(metadataForSignature.toBase64()).toBase64();
 
     _encryptedMetadataVersion = latestSupportedMetadataVersion();
 
@@ -833,7 +834,7 @@ QByteArray FolderMetadata::prepareMetadataForSignature(const QJsonDocument &full
 
     metdataModified.setObject(modifiedObject);
     auto jsonString = metdataModified.toJson();
-    return metdataModified.toBinaryData();
+    return metdataModified.toJson();
 }
 
 void FolderMetadata::addEncryptedFile(const EncryptedFile &f) {
