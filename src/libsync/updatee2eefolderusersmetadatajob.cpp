@@ -87,7 +87,7 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
         return;
     }
 
-    const auto rootEncFolderInfo = FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(folderPath, rec.path()));
+    const auto rootEncFolderInfo = FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(folderPath, rec.path()), _metadataKeyForEncryption, _metadataKeyForDecryption, _keyChecksums);
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(rootEncFolderInfo, true);
