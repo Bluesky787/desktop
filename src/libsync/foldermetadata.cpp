@@ -35,7 +35,6 @@ constexpr auto filedropKey = "filedrop";
 constexpr auto foldersKey = "folders";
 constexpr auto initializationVectorKey = "initializationVector";
 constexpr auto keyChecksumsKey = "keyChecksums";
-constexpr auto deletedFlagKey = "deleted";
 constexpr auto metadataJsonKey = "metadata";
 constexpr auto metadataKeyKey = "metadataKey";
 constexpr auto metadataKeysKey = "metadataKeys";
@@ -234,12 +233,7 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     }
 
     const auto cipherTextDocument = QJsonDocument::fromJson(cipherTextDecrypted);
-    
-    if (cipherTextDocument.object().contains(deletedFlagKey)) {
-        _isInitialDeletedFlagSet = cipherTextDocument.object().value(deletedFlagKey).toBool();
-    }
 
-    // TODO: document must first return QJsonObject before accessing values
     const auto keyCheckSums = cipherTextDocument[keyChecksumsKey].toArray();
     if (!keyCheckSums.isEmpty()) {
         _keyChecksums.clear();
@@ -783,16 +777,6 @@ QByteArray FolderMetadata::metadataSignature() const
 QByteArray FolderMetadata::initialMetadata() const
 {
     return _initialMetadata;
-}
-
-bool FolderMetadata::isInitialDeletedFlagSet() const
-{
-    return _isInitialDeletedFlagSet;
-}
-
-void FolderMetadata::flagDeletedSet()
-{
-    _isFlagDeletedSet = true;
 }
 
 quint64 FolderMetadata::counter() const

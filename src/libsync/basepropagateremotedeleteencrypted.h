@@ -60,13 +60,7 @@ protected slots:
     virtual void slotFolderUnLockFinished(const QByteArray &folderId, int statusCode);
     virtual void slotFetchMetadataJobFinished(int statusCode, const QString &message) = 0;
     virtual void slotUpdateMetadataJobFinished(int statusCode, const QString &message) = 0;
-    //TODO: Move these 2 somewhere else?
-    void slotFetchMetadataJobFinishedRootDeletion(int statusCode, const QString &message);
-    void slotUpdateMetadataJobFinishedRootDeletion(int statusCode, const QString &message);
     void slotDeleteRemoteItemFinished();
-
-private:
-    void runDeleteJob(const QString &fullRemotePath);
 
 protected:
     QPointer<OwncloudPropagator> _propagator = nullptr;
