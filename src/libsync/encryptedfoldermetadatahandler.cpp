@@ -328,20 +328,24 @@ QSharedPointer<FolderMetadata> EncryptedFolderMetadataHandler::folderMetadata() 
     return _folderMetadata;
 }
 
-void EncryptedFolderMetadataHandler::setMetadata(const QSharedPointer<FolderMetadata> &metadata)
+void EncryptedFolderMetadataHandler::setPrefetchedMetadataAndId(const QSharedPointer<FolderMetadata> &metadata, const QByteArray &id)
 {
     Q_ASSERT(metadata && metadata->isValid());
-    if (metadata && metadata->isValid()) {
-        _folderMetadata = metadata;
-        _isNewMetadataCreated = metadata->initialMetadata().isEmpty();
-    } else {
-        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "setMetadata has invalid argument";
-    }
-}
+    Q_ASSERT(!id.isEmpty());
 
-void EncryptedFolderMetadataHandler::setFolderId(const QByteArray &folderId)
-{
-    _folderId = folderId;
+    if (!metadata || !metadata->isValid()) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "invalid metadata argument";
+        return;
+    }
+
+    if (id.isEmpty()) {
+        qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "invalid id argument";
+        return;
+    }
+
+    _folderId = id;
+    _folderMetadata = metadata;
+    _isNewMetadataCreated = metadata->initialMetadata().isEmpty();
 }
 
 const QByteArray EncryptedFolderMetadataHandler::folderId() const

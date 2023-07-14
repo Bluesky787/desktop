@@ -111,7 +111,7 @@ void EncryptFolderJob::uploadMetadata()
         return;
     }
 
-    auto emptyMetadata(QSharedPointer<FolderMetadata>::create(
+    const auto emptyMetadata(QSharedPointer<FolderMetadata>::create(
         _account,
         QByteArray{},
         RootEncryptedFolderInfo(RootEncryptedFolderInfo::createRootPath(currentPath, rec.path())),
@@ -127,8 +127,7 @@ void EncryptFolderJob::uploadMetadata()
             emit finished(Error, EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted);
             return;
         }
-        _encryptedFolderMetadataHandler->setMetadata(emptyMetadata);
-        _encryptedFolderMetadataHandler->setFolderId(_fileId);
+        _encryptedFolderMetadataHandler->setPrefetchedMetadataAndId(emptyMetadata, _fileId);
         connect(_encryptedFolderMetadataHandler.data(),
                 &EncryptedFolderMetadataHandler::uploadFinished,
                 this,
