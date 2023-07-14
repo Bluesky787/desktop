@@ -12,8 +12,9 @@
  * for more details.
  */
 
+#include "rootencryptedfolderinfo.h"
 #include "fetchanduploade2eefoldermetadatajob.h"
-
+#include "foldermetadata.h"
 #include "account.h"
 #include "common/syncjournaldb.h"
 #include "clientsideencryptionjobs.h"
@@ -40,8 +41,8 @@ FetchAndUploadE2eeFolderMetadataJob::FetchAndUploadE2eeFolderMetadataJob(const A
     , _folderPath(folderPath)
     , _journalDb(journalDb)
 {
-    _rootEncryptedFolderInfo = FolderMetadata::RootEncryptedFolderInfo(
-        FolderMetadata::RootEncryptedFolderInfo::createRootPath(folderPath, pathForTopLevelFolder));
+    _rootEncryptedFolderInfo = RootEncryptedFolderInfo(
+        RootEncryptedFolderInfo::createRootPath(folderPath, pathForTopLevelFolder));
 }
 
 void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
@@ -50,7 +51,7 @@ void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(bool allowEmptyMetadata)
     fetchFolderEncryptedId();
 }
 
-void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata)
+void FetchAndUploadE2eeFolderMetadataJob::fetchMetadata(const RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata)
 {
     _rootEncryptedFolderInfo = rootEncryptedFolderInfo;
     if (_rootEncryptedFolderInfo.path.isEmpty()) {

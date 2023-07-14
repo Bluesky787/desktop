@@ -15,8 +15,7 @@
 #pragma once
 
 #include "account.h"
-#include "foldermetadata.h"
-
+#include <rootencryptedfolderinfo.h>
 #include <QHash>
 #include <QMutex>
 #include <QObject>
@@ -24,6 +23,7 @@
 #include <QString>
 
 namespace OCC {
+class FolderMetadata;
 class SyncJournalDb;
 class OWNCLOUDSYNC_EXPORT FetchAndUploadE2eeFolderMetadataJob : public QObject
 {
@@ -48,7 +48,7 @@ public:
     [[nodiscard]] const bool isUnlockRunning() const;
     [[nodiscard]] const bool isFolderLocked() const;
 
-    void fetchMetadata(const FolderMetadata::RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata = false);
+    void fetchMetadata(const RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata = false);
     void fetchMetadata(bool allowEmptyMetadata = false);
     void uploadMetadata(bool keepLock = false);
     void unlockFolder(bool success = true);
@@ -90,7 +90,7 @@ private:
 
     QSharedPointer<FolderMetadata> _folderMetadata;
 
-    FolderMetadata::RootEncryptedFolderInfo _rootEncryptedFolderInfo;
+    RootEncryptedFolderInfo _rootEncryptedFolderInfo;
 
     int _uploadErrorCode = 200;
 

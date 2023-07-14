@@ -14,7 +14,7 @@
 
 #include <QFileInfo>
 #include <QLoggingCategory>
-
+#include "foldermetadata.h"
 #include "BasePropagateRemoteDeleteEncrypted.h"
 #include "account.h"
 #include "clientsideencryptionjobs.h"

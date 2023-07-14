@@ -13,6 +13,7 @@
  */
 
 #include "account.h"
+#include "fetchanduploade2eefoldermetadatajob.h"
 #include "foldermetadata.h"
 #include "clientsideencryption.h"
 #include "clientsideencryptionjobs.h"
@@ -53,46 +54,6 @@ QString metadataStringFromOCsDocument(const QJsonDocument &ocsDoc)
 {
     return ocsDoc.object()["ocs"].toObject()["data"].toObject()["meta-data"].toString();
 }
-}
-
-FolderMetadata::RootEncryptedFolderInfo::RootEncryptedFolderInfo()
-{
-    *this = FolderMetadata::RootEncryptedFolderInfo::makeDefault();
-}
-
-FolderMetadata::RootEncryptedFolderInfo::RootEncryptedFolderInfo(const QString &remotePath,
-                                 const QByteArray &encryptionKey,
-                                 const QByteArray &decryptionKey,
-                                 const QSet<QByteArray> &checksums,
-                                 const quint64 counter):
-    path(remotePath),
-    keyForEncryption(encryptionKey),
-    keyForDecryption(decryptionKey), 
-    keyChecksums(checksums),
-    counter(counter)
-{
-}
-
-FolderMetadata::RootEncryptedFolderInfo FolderMetadata::RootEncryptedFolderInfo::makeDefault()
-{
-    return RootEncryptedFolderInfo{QStringLiteral("/")};
-}
-
-QString FolderMetadata::RootEncryptedFolderInfo::createRootPath(const QString &currentPath, const QString &topLevelPath)
-{
-    const auto currentPathNoLeadingSlash = currentPath.startsWith(QLatin1Char('/'))
-        ? currentPath.mid(1)
-        : currentPath;
-    const auto topLevelPathNoLeadingSlash = topLevelPath.startsWith(QLatin1Char('/'))
-        ? topLevelPath.mid(1)
-        : topLevelPath;
-
-    return currentPathNoLeadingSlash == topLevelPathNoLeadingSlash ? QStringLiteral("/") : topLevelPath;
-}
-
-bool FolderMetadata::RootEncryptedFolderInfo::keysSet() const
-{
-    return !keyForEncryption.isEmpty() && !keyForDecryption.isEmpty() && !keyChecksums.isEmpty();
 }
 
 FolderMetadata::FolderMetadata(AccountPtr account)
@@ -939,77 +900,34 @@ const QByteArray &FolderMetadata::fileDrop() const
 
 void FolderMetadata::startFetchRootE2eeFolderMetadata(const QString &path)
 {
-    const auto job = new LsColJob(_account, path, this);
-    job->setProperties({"resourcetype", "http://owncloud.org/ns:fileid"});
-    connect(job, &LsColJob::directoryListingSubfolders, this, &FolderMetadata::rootE2eeFolderEncryptedIdReceived);
-    connect(job, &LsColJob::finishedWithError, this, &FolderMetadata::rootE2eeFolderEncryptedIdReceivedError);
-    job->start();
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, path, nullptr, "/"));
+
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            this,
+            &FolderMetadata::slotRootE2eeFolderMetadataReceived);
+    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(RootEncryptedFolderInfo::makeDefault() , true);
 }
 
-void FolderMetadata::fetchRootE2eeFolderMetadata(const QByteArray &folderId)
+void FolderMetadata::slotRootE2eeFolderMetadataReceived(int statusCode, const QString &message)
 {
-    const auto getMetadataJob = new GetMetadataApiJob(_account, folderId);
-    connect(getMetadataJob, &GetMetadataApiJob::jsonReceived, this, &FolderMetadata::rootE2eeFolderMetadataReceived);
-    connect(getMetadataJob, &GetMetadataApiJob::error, this, &FolderMetadata::rotE2eeFolderEncryptedMetadataReceivedError);
-    getMetadataJob->start();
-}
-
-void FolderMetadata::rootE2eeFolderEncryptedIdReceived(const QStringList &list)
-{
-    const auto job = qobject_cast<LsColJob *>(sender());
-    Q_ASSERT(job);
-    if (!job || job->_folderInfos.isEmpty()) {
-        rootE2eeFolderMetadataReceived({}, 404);
+    const auto rootE2eeFolderMetadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    if (!rootE2eeFolderMetadata->isValid() || !rootE2eeFolderMetadata->isVersion2AndUp()) {
+        initMetadata();
         return;
     }
-    fetchRootE2eeFolderMetadata(job->_folderInfos.value(list.first()).fileId);
-}
-
-void FolderMetadata::rotE2eeFolderEncryptedMetadataReceivedError(const QByteArray &fileId, int httpReturnCode)
-{
-    Q_UNUSED(fileId);
-    Q_UNUSED(httpReturnCode);
-    rootE2eeFolderMetadataReceived({}, httpReturnCode);
-}
-
-void FolderMetadata::rootE2eeFolderMetadataReceived(const QJsonDocument &json, int statusCode)
-{
-    const auto job = qobject_cast<GetMetadataApiJob *>(sender());
-    Q_ASSERT(job);
-    if (!job) {
-        qCDebug(lcCseMetadata()) << "rootE2eeFolderMetadataReceived must be called from GetMetadataApiJob's signal";
+    
+    _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
+    
+    if (!isVersion2AndUp()) {
         initMetadata();
         return;
     }
 
-    if (json.isEmpty()) {
-        initMetadata();
-        return;
-    }
-
-    const auto rootE2eeFolderMetadata(QSharedPointer<FolderMetadata>::create(_account, json.toJson(QJsonDocument::Compact), RootEncryptedFolderInfo::makeDefault(), job->signature()));
-    connect(rootE2eeFolderMetadata.data(), &FolderMetadata::setupComplete, this, [this, rootE2eeFolderMetadata]() {
-        if (!rootE2eeFolderMetadata->isValid() || !rootE2eeFolderMetadata->isVersion2AndUp()) {
-            initMetadata();
-            return;
-        }
-
-        _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
-
-        if (!isVersion2AndUp()) {
-            initMetadata();
-            return;
-        }
-        _metadataKeyForDecryption = rootE2eeFolderMetadata->metadataKeyForDecryption();
-        _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
-        _keyChecksums = rootE2eeFolderMetadata->keyChecksums();
-        initMetadata();
-    });
-}
-
-void FolderMetadata::rootE2eeFolderEncryptedIdReceivedError(QNetworkReply *reply)
-{
-    rootE2eeFolderMetadataReceived({}, reply ? reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() : 0);
+    _metadataKeyForDecryption = rootE2eeFolderMetadata->metadataKeyForDecryption();
+    _metadataKeyForEncryption = rootE2eeFolderMetadata->metadataKeyForEncryption();
+    _keyChecksums = rootE2eeFolderMetadata->keyChecksums();
+    initMetadata();
 }
 
 bool FolderMetadata::addUser(const QString &userId, const QSslCertificate &certificate)

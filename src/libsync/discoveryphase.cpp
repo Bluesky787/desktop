@@ -700,7 +700,7 @@ void DiscoverySingleDirectoryJob::metadataReceived(const QJsonDocument &json, in
 
     _e2EeFolderMetadata.reset(new FolderMetadata(_account,
                                                  statusCode == 404 ? QByteArray{} : json.toJson(QJsonDocument::Compact),
-                                                 FolderMetadata::RootEncryptedFolderInfo(topLevelFolderPath),
+                                                 RootEncryptedFolderInfo(topLevelFolderPath),
                                                  job->signature()));
     connect(_e2EeFolderMetadata.data(), &FolderMetadata::setupComplete, this, [this] {
         if (!_e2EeFolderMetadata->isValid()) {

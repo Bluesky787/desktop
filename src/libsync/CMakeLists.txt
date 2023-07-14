@@ -114,10 +114,14 @@ set(libsync_SRCS
     clientsideencryptionjobs.cpp
     datetimeprovider.h
     datetimeprovider.cpp
+    rootencryptedfolderinfo.h
+    rootencryptedfolderinfo.cpp
     foldermetadata.h
     foldermetadata.cpp
     ocsuserstatusconnector.h
     ocsuserstatusconnector.cpp
+    rootencryptedfolderinfo.cpp
+    rootencryptedfolderinfo.h
     userstatusconnector.h
     userstatusconnector.cpp
     ocsprofileconnector.h

@@ -114,7 +114,7 @@ void EncryptFolderJob::uploadMetadata()
     auto emptyMetadata(QSharedPointer<FolderMetadata>::create(
         _account,
         QByteArray{},
-        FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(currentPath, rec.path())),
+        RootEncryptedFolderInfo(RootEncryptedFolderInfo::createRootPath(currentPath, rec.path())),
         QByteArray{}));
 
     connect(emptyMetadata.data(), &FolderMetadata::setupComplete, this, [this, emptyMetadata] {
