@@ -52,7 +52,7 @@ private:
     SyncFileItemPtr _item;
     QString _encryptedRemotePath;
 
-    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _encryptedFolderMetadataHandler;
 };
 
 }

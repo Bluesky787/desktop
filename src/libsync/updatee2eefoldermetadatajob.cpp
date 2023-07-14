@@ -46,12 +46,12 @@ void UpdateE2eeFolderMetadataJob::start()
         unlockFolder(false);
         return;
     }
-    _fetchAndUploadE2eeFolderMetadataJob.reset(
+    _encryptedFolderMetadataHandler.reset(
             new EncryptedFolderMetadataHandler(propagator()->account(), _encryptedRemotePath, propagator()->_journal, rec.path()));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::fetchFinished,
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::fetchFinished,
             this, &UpdateE2eeFolderMetadataJob::slotFetchMetadataJobFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
+    _encryptedFolderMetadataHandler->fetchMetadata(true);
 }
 
 bool UpdateE2eeFolderMetadataJob::scheduleSelfOrChild()
@@ -89,15 +89,15 @@ void UpdateE2eeFolderMetadataJob::slotFetchMetadataJobFinished(int httpReturnCod
         return;
     }
 
-    const auto folderMetadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto folderMetadata = _encryptedFolderMetadataHandler->folderMetadata();
     if (!folderMetadata || !folderMetadata->isValid() || (!folderMetadata->moveFromFileDropToFiles() && !folderMetadata->encryptedMetadataNeedUpdate())) {
         unlockFolder(false);
         return;
     }
 
     emit fileDropMetadataParsedAndAdjusted(folderMetadata.data());
-    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata();
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::uploadFinished,
+    _encryptedFolderMetadataHandler->uploadMetadata();
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::uploadFinished,
             this, &UpdateE2eeFolderMetadataJob::slotUpdateMetadataFinished);
 }
 
@@ -106,7 +106,7 @@ void UpdateE2eeFolderMetadataJob::slotUpdateMetadataFinished(int httpReturnCode,
     const auto itemStatus = httpReturnCode != 200 ? SyncFileItem::FatalError : SyncFileItem::Success;
     if (httpReturnCode != 200) {
         _item->_errorString = message;
-        qCDebug(lcUpdateFileDropMetadataJob) << "Update metadata error for folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId() << "with error" << httpReturnCode << message;
+        qCDebug(lcUpdateFileDropMetadataJob) << "Update metadata error for folder" << _encryptedFolderMetadataHandler->folderId() << "with error" << httpReturnCode << message;
     } else {
         qCDebug(lcUpdateFileDropMetadataJob) << "Uploading of the metadata success, Encrypting the file";
     }
@@ -116,10 +116,10 @@ void UpdateE2eeFolderMetadataJob::slotUpdateMetadataFinished(int httpReturnCode,
 
 void UpdateE2eeFolderMetadataJob::unlockFolder(bool success)
 {
-    Q_ASSERT(!_fetchAndUploadE2eeFolderMetadataJob->isUnlockRunning());
+    Q_ASSERT(!_encryptedFolderMetadataHandler->isUnlockRunning());
     Q_ASSERT(_item);
 
-    if (_fetchAndUploadE2eeFolderMetadataJob->isUnlockRunning()) {
+    if (_encryptedFolderMetadataHandler->isUnlockRunning()) {
         qCWarning(lcUpdateFileDropMetadataJob) << "Double-call to unlockFolder.";
         return;
     }
@@ -130,9 +130,9 @@ void UpdateE2eeFolderMetadataJob::unlockFolder(bool success)
 
     const auto itemStatus = success ? SyncFileItem::Success : SyncFileItem::FatalError;
 
-    if (!_fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
-        if (success && _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()) {
-            _item->_e2eEncryptionStatus = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->encryptedMetadataEncryptionStatus();
+    if (!_encryptedFolderMetadataHandler->isFolderLocked()) {
+        if (success && _encryptedFolderMetadataHandler->folderMetadata()) {
+            _item->_e2eEncryptionStatus = _encryptedFolderMetadataHandler->folderMetadata()->encryptedMetadataEncryptionStatus();
             if (_item->isEncrypted()) {
                 _item->_e2eEncryptionMaximumAvailableStatus = EncryptionStatusEnums::fromEndToEndEncryptionApiVersion(propagator()->account()->capabilities().clientSideEncryptionVersion());
             }
@@ -142,7 +142,7 @@ void UpdateE2eeFolderMetadataJob::unlockFolder(bool success)
     }
 
     qCDebug(lcUpdateFileDropMetadataJob) << "Calling Unlock";
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, [this](const QByteArray &folderId, int httpStatus) {
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::folderUnlocked, [this](const QByteArray &folderId, int httpStatus) {
         qCWarning(lcUpdateFileDropMetadataJob) << "Unlock Error";
 
         if (httpStatus != 200) {
@@ -153,20 +153,20 @@ void UpdateE2eeFolderMetadataJob::unlockFolder(bool success)
 
         qCDebug(lcUpdateFileDropMetadataJob) << "Successfully Unlocked";
 
-        if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()
-            || !_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->isValid()) {
+        if (!_encryptedFolderMetadataHandler->folderMetadata()
+            || !_encryptedFolderMetadataHandler->folderMetadata()->isValid()) {
             qCWarning(lcUpdateFileDropMetadataJob) << "Failed to finalize item. Invalid metadata.";
             _item->_errorString = tr("Failed to finalize item.");
             finished(SyncFileItem::FatalError);
             return;
         }
 
-        _item->_e2eEncryptionStatus = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->encryptedMetadataEncryptionStatus();
-        _item->_e2eEncryptionStatusRemote = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->encryptedMetadataEncryptionStatus();
+        _item->_e2eEncryptionStatus = _encryptedFolderMetadataHandler->folderMetadata()->encryptedMetadataEncryptionStatus();
+        _item->_e2eEncryptionStatusRemote = _encryptedFolderMetadataHandler->folderMetadata()->encryptedMetadataEncryptionStatus();
 
         finished(SyncFileItem::Success);
     });
-    _fetchAndUploadE2eeFolderMetadataJob->unlockFolder(success);
+    _encryptedFolderMetadataHandler->unlockFolder(success);
 }
 
 }

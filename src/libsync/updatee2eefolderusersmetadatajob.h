@@ -108,7 +108,7 @@ private:
     UserData _userData; // share info, etc.
     QHash<QString, SyncFileItemPtr> _subJobSyncItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
     QMutex _subJobSyncItemsMutex;
-    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _encryptedFolderMetadataHandler;
 };
 
 }

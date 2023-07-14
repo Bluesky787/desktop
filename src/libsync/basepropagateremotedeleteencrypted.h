@@ -71,7 +71,7 @@ protected:
     QString _fullFolderRemotePath;
 
 private:
-    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _encryptedFolderMetadataHandler;
 };
 
 }

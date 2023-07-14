@@ -59,35 +59,35 @@ void PropagateUploadEncrypted::start()
         emit error();
         return;
     }
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_propagator->account(),
+    _encryptedFolderMetadataHandler.reset(new EncryptedFolderMetadataHandler(_propagator->account(),
                                                                                        _remoteParentAbsolutePath,
                                                                                        _propagator->_journal,
                                                                                        rec.path()));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::fetchFinished,
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::fetchFinished,
         this, &PropagateUploadEncrypted::slotFetchMetadataJobFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
+    _encryptedFolderMetadataHandler->fetchMetadata(true);
 }
 
 void PropagateUploadEncrypted::unlockFolder()
 {
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &PropagateUploadEncrypted::folderUnlocked);
-    _fetchAndUploadE2eeFolderMetadataJob->unlockFolder();
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &PropagateUploadEncrypted::folderUnlocked);
+    _encryptedFolderMetadataHandler->unlockFolder();
 }
 
 bool PropagateUploadEncrypted::isUnlockRunning() const
 {
-    return _fetchAndUploadE2eeFolderMetadataJob->isUnlockRunning();
+    return _encryptedFolderMetadataHandler->isUnlockRunning();
 }
 
 bool PropagateUploadEncrypted::isFolderLocked() const
 {
-    return _fetchAndUploadE2eeFolderMetadataJob->isFolderLocked();
+    return _encryptedFolderMetadataHandler->isFolderLocked();
 }
 
 const QByteArray PropagateUploadEncrypted::folderToken() const
 {
-    return _fetchAndUploadE2eeFolderMetadataJob ? _fetchAndUploadE2eeFolderMetadataJob->folderToken() : QByteArray{};
+    return _encryptedFolderMetadataHandler ? _encryptedFolderMetadataHandler->folderToken() : QByteArray{};
 }
 
 void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, const QString &message)
@@ -99,7 +99,7 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
         return;
     }
 
-    const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto metadata = _encryptedFolderMetadataHandler->folderMetadata();
 
     if (!metadata || !metadata->isValid()) {
         qCDebug(lcPropagateUploadEncrypted()) << "There was an error encrypting the file, aborting upload. Invalid metadata.";
@@ -172,14 +172,14 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
 
     qCDebug(lcPropagateUploadEncrypted) << "Metadata created, sending to the server.";
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::uploadFinished, this, &PropagateUploadEncrypted::slotUploadMetadataFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::uploadFinished, this, &PropagateUploadEncrypted::slotUploadMetadataFinished);
+    _encryptedFolderMetadataHandler->uploadMetadata(true);
 }
 
 void PropagateUploadEncrypted::slotUploadMetadataFinished(int statusCode, const QString &message)
 {
     if (statusCode != 200) {
-        qCDebug(lcPropagateUploadEncrypted) << "Update metadata error for folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId() << "with error" << message;
+        qCDebug(lcPropagateUploadEncrypted) << "Update metadata error for folder" << _encryptedFolderMetadataHandler->folderId() << "with error" << message;
         qCDebug(lcPropagateUploadEncrypted()) << "Unlocking the folder.";
         emit error();
         return;

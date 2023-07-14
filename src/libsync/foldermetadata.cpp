@@ -900,18 +900,18 @@ const QByteArray &FolderMetadata::fileDrop() const
 
 void FolderMetadata::startFetchRootE2eeFolderMetadata(const QString &path)
 {
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_account, path, nullptr, "/"));
+    _encryptedFolderMetadataHandler.reset(new EncryptedFolderMetadataHandler(_account, path, nullptr, "/"));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+    connect(_encryptedFolderMetadataHandler.data(),
             &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &FolderMetadata::slotRootE2eeFolderMetadataReceived);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(RootEncryptedFolderInfo::makeDefault() , true);
+    _encryptedFolderMetadataHandler->fetchMetadata(RootEncryptedFolderInfo::makeDefault() , true);
 }
 
 void FolderMetadata::slotRootE2eeFolderMetadataReceived(int statusCode, const QString &message)
 {
-    const auto rootE2eeFolderMetadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto rootE2eeFolderMetadata = _encryptedFolderMetadataHandler->folderMetadata();
     if (!rootE2eeFolderMetadata->isValid() || !rootE2eeFolderMetadata->isVersion2AndUp()) {
         initMetadata();
         return;

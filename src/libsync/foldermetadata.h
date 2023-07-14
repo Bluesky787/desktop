@@ -192,7 +192,7 @@ private:
 
     bool _isMetadataValid = false;
 
-    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _encryptedFolderMetadataHandler;
 };
 
 } // namespace OCC

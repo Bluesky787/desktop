@@ -41,14 +41,14 @@ void PropagateDownloadEncrypted::start()
         emit failed();
         return;
     }
-    _fetchAndUploadE2eeFolderMetadataJob.reset(
+    _encryptedFolderMetadataHandler.reset(
         new EncryptedFolderMetadataHandler(_propagator->account(), _remoteParentPath, _propagator->_journal, rec.path()));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+    connect(_encryptedFolderMetadataHandler.data(),
             &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &PropagateDownloadEncrypted::slotFetchMetadataJobFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
+    _encryptedFolderMetadataHandler->fetchMetadata(true);
 }
 
 void PropagateDownloadEncrypted::slotFetchMetadataJobFinished(int statusCode, const QString &message)
@@ -61,7 +61,7 @@ void PropagateDownloadEncrypted::slotFetchMetadataJobFinished(int statusCode, co
 
     qCDebug(lcPropagateDownloadEncrypted) << "Metadata Received reading" << _item->_instruction << _item->_file << _item->_encryptedFileName;
 
-    const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto metadata = _encryptedFolderMetadataHandler->folderMetadata();
 
     if (!metadata || !metadata->isValid()) {
         emit failed();

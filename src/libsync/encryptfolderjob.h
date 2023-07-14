@@ -68,6 +68,6 @@ private:
     QString _errorString;
     OwncloudPropagator *_propagator = nullptr;
     SyncFileItemPtr _item;
-    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _encryptedFolderMetadataHandler;
 };
 }

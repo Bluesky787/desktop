@@ -36,7 +36,7 @@ EncryptFolderJob::EncryptFolderJob(const AccountPtr &account, SyncJournalDb *jou
     SyncJournalFileRecord rec;
     const auto currentPath = !_pathNonEncrypted.isEmpty() ? _pathNonEncrypted : _path;
     [[maybe_unused]] const auto result = _journal->getRootE2eFolderRecord(currentPath, &rec);
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(account, _path, _journal, rec.path()));
+    _encryptedFolderMetadataHandler.reset(new EncryptedFolderMetadataHandler(account, _path, _journal, rec.path()));
 }
 
 void EncryptFolderJob::slotSetEncryptionFlag()
@@ -127,27 +127,27 @@ void EncryptFolderJob::uploadMetadata()
             emit finished(Error, EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted);
             return;
         }
-        _fetchAndUploadE2eeFolderMetadataJob->setMetadata(emptyMetadata);
-        _fetchAndUploadE2eeFolderMetadataJob->setFolderId(_fileId);
-        connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+        _encryptedFolderMetadataHandler->setMetadata(emptyMetadata);
+        _encryptedFolderMetadataHandler->setFolderId(_fileId);
+        connect(_encryptedFolderMetadataHandler.data(),
                 &EncryptedFolderMetadataHandler::uploadFinished,
                 this,
                 &EncryptFolderJob::slotUploadMetadataFinished);
-        _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata();
+        _encryptedFolderMetadataHandler->uploadMetadata();
     });
 }
 
 void EncryptFolderJob::slotUploadMetadataFinished(int statusCode, const QString &message)
 {
     if (statusCode != 200) {
-        qCDebug(lcEncryptFolderJob) << "Update metadata error for folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId() << "with error"
+        qCDebug(lcEncryptFolderJob) << "Update metadata error for folder" << _encryptedFolderMetadataHandler->folderId() << "with error"
                                             << message;
         qCDebug(lcEncryptFolderJob()) << "Unlocking the folder.";
         _errorString = message;
         emit finished(Error, EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted);
         return;
     }
-    emit finished(Success, _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->encryptedMetadataEncryptionStatus());
+    emit finished(Success, _encryptedFolderMetadataHandler->folderMetadata()->encryptedMetadataEncryptionStatus());
 }
 
 }

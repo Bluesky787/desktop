@@ -277,7 +277,7 @@ void OCC::HydrationJob::slotFetchMetadataJobFinished(int statusCode, const QStri
 
     // TODO: the following code is borrowed from PropagateDownloadEncrypted (see HydrationJob::onNewConnection() for explanation of next steps)
     qCDebug(lcHydration) << "Metadata Received reading" << e2eMangledName();
-    const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    const auto metadata = _encryptedFolderMetadataHandler->folderMetadata();
     if (!metadata->isValid()) {
         qCCritical(lcHydration) << "Failed to find encrypted metadata information of a remote file" << e2eMangledName();
         emitFinished(Error);
@@ -348,10 +348,10 @@ void OCC::HydrationJob::handleNewConnectionForEncryptedFile()
         emitFinished(Error);
         return;
     }
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_account, _remoteParentPath, _journal, rec.path()));
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+    _encryptedFolderMetadataHandler.reset(new EncryptedFolderMetadataHandler(_account, _remoteParentPath, _journal, rec.path()));
+    connect(_encryptedFolderMetadataHandler.data(),
             &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &HydrationJob::slotFetchMetadataJobFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata();
+    _encryptedFolderMetadataHandler->fetchMetadata();
 }

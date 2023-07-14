@@ -66,25 +66,25 @@ void BasePropagateRemoteDeleteEncrypted::fetchMetadataForPath(const QString &pat
         return;
     }
 
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_propagator->account(),
+    _encryptedFolderMetadataHandler.reset(new EncryptedFolderMetadataHandler(_propagator->account(),
                                                                                        _fullFolderRemotePath,
                                                                                        _propagator->_journal,
                                                                                        rec.path()));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+    connect(_encryptedFolderMetadataHandler.data(),
             &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &BasePropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished);
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+    connect(_encryptedFolderMetadataHandler.data(),
             &EncryptedFolderMetadataHandler::uploadFinished,
             this,
             &BasePropagateRemoteDeleteEncrypted::slotUpdateMetadataJobFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata();
+    _encryptedFolderMetadataHandler->fetchMetadata();
 }
 
 void BasePropagateRemoteDeleteEncrypted::uploadMetadata(bool keepLock)
 {
-    _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(keepLock);
+    _encryptedFolderMetadataHandler->uploadMetadata(keepLock);
 }
 
 void BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(const QByteArray &folderId, int statusCode)
@@ -154,9 +154,9 @@ void BasePropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &filenam
     qCInfo(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Deleting nested encrypted item" << filename;
 
     const auto deleteJob = new DeleteJob(_propagator->account(), _propagator->fullRemotePath(filename), this);
-    if (_fetchAndUploadE2eeFolderMetadataJob && _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()
-        && _fetchAndUploadE2eeFolderMetadataJob->folderMetadata()->isValid()) {
-        deleteJob->setFolderToken(_fetchAndUploadE2eeFolderMetadataJob->folderToken());
+    if (_encryptedFolderMetadataHandler && _encryptedFolderMetadataHandler->folderMetadata()
+        && _encryptedFolderMetadataHandler->folderMetadata()->isValid()) {
+        deleteJob->setFolderToken(_encryptedFolderMetadataHandler->folderToken());
     }
 
     connect(deleteJob, &DeleteJob::finishedSignal, this, &BasePropagateRemoteDeleteEncrypted::slotDeleteRemoteItemFinished);
@@ -165,22 +165,22 @@ void BasePropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &filenam
 
 void BasePropagateRemoteDeleteEncrypted::unlockFolder(bool success)
 {
-    if (!_fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
+    if (!_encryptedFolderMetadataHandler->isFolderLocked()) {
         emit finished(true);
         return;
     }
 
-    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Unlocking folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId();
+    qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Unlocking folder" << _encryptedFolderMetadataHandler->folderId();
     
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished);
-    _fetchAndUploadE2eeFolderMetadataJob->unlockFolder(success);
+    connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished);
+    _encryptedFolderMetadataHandler->unlockFolder(success);
 }
 
 void BasePropagateRemoteDeleteEncrypted::taskFailed()
 {
     qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Task failed for job" << sender();
     _isTaskFailed = true;
-    if (_fetchAndUploadE2eeFolderMetadataJob->isFolderLocked()) {
+    if (_encryptedFolderMetadataHandler->isFolderLocked()) {
         unlockFolder(false);
     } else {
         emit finished(false);
@@ -189,16 +189,16 @@ void BasePropagateRemoteDeleteEncrypted::taskFailed()
 
 QSharedPointer<FolderMetadata> BasePropagateRemoteDeleteEncrypted::folderMetadata() const
 {
-    Q_ASSERT(_fetchAndUploadE2eeFolderMetadataJob->folderMetadata());
-    if (!_fetchAndUploadE2eeFolderMetadataJob->folderMetadata()) {
+    Q_ASSERT(_encryptedFolderMetadataHandler->folderMetadata());
+    if (!_encryptedFolderMetadataHandler->folderMetadata()) {
         qCWarning(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Metadata is null!";
     }
-    return _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
+    return _encryptedFolderMetadataHandler->folderMetadata();
 }
 
 const QByteArray BasePropagateRemoteDeleteEncrypted::folderToken() const
 {
-    return _fetchAndUploadE2eeFolderMetadataJob->folderToken();
+    return _encryptedFolderMetadataHandler->folderToken();
 }
 
 } // namespace OCC
