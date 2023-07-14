@@ -169,7 +169,7 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
 
     qCDebug(lcPropagateUploadEncrypted) << "Creating the metadata for the encrypted file.";
 
-
+    metadata->addEncryptedFile(encryptedFile);
 
     qCDebug(lcPropagateUploadEncrypted) << "Metadata created, sending to the server.";
 
