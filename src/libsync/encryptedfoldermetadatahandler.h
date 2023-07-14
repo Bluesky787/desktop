@@ -25,12 +25,12 @@
 namespace OCC {
 class FolderMetadata;
 class SyncJournalDb;
-class OWNCLOUDSYNC_EXPORT FetchAndUploadE2eeFolderMetadataJob : public QObject
+class OWNCLOUDSYNC_EXPORT EncryptedFolderMetadataHandler : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit FetchAndUploadE2eeFolderMetadataJob(const AccountPtr &account,
+    explicit EncryptedFolderMetadataHandler(const AccountPtr &account,
                                                  const QString &folderPath,
                                                  SyncJournalDb *const journalDb,
                                                  const QString &pathForTopLevelFolder,

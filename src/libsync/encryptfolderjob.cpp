@@ -36,7 +36,7 @@ EncryptFolderJob::EncryptFolderJob(const AccountPtr &account, SyncJournalDb *jou
     SyncJournalFileRecord rec;
     const auto currentPath = !_pathNonEncrypted.isEmpty() ? _pathNonEncrypted : _path;
     [[maybe_unused]] const auto result = _journal->getRootE2eFolderRecord(currentPath, &rec);
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(account, _path, _journal, rec.path()));
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(account, _path, _journal, rec.path()));
 }
 
 void EncryptFolderJob::slotSetEncryptionFlag()
@@ -130,7 +130,7 @@ void EncryptFolderJob::uploadMetadata()
         _fetchAndUploadE2eeFolderMetadataJob->setMetadata(emptyMetadata);
         _fetchAndUploadE2eeFolderMetadataJob->setFolderId(_fileId);
         connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
-                &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+                &EncryptedFolderMetadataHandler::uploadFinished,
                 this,
                 &EncryptFolderJob::slotUploadMetadataFinished);
         _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata();

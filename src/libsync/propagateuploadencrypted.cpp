@@ -3,7 +3,7 @@
 #include "networkjobs.h"
 #include "clientsideencryption.h"
 #include "foldermetadata.h"
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include "account.h"
 #include <QFileInfo>
 #include <QDir>
@@ -59,19 +59,19 @@ void PropagateUploadEncrypted::start()
         emit error();
         return;
     }
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(),
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_propagator->account(),
                                                                                        _remoteParentAbsolutePath,
                                                                                        _propagator->_journal,
                                                                                        rec.path()));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::fetchFinished,
         this, &PropagateUploadEncrypted::slotFetchMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
 }
 
 void PropagateUploadEncrypted::unlockFolder()
 {
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &PropagateUploadEncrypted::folderUnlocked);
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &PropagateUploadEncrypted::folderUnlocked);
     _fetchAndUploadE2eeFolderMetadataJob->unlockFolder();
 }
 
@@ -172,7 +172,7 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
 
     qCDebug(lcPropagateUploadEncrypted) << "Metadata created, sending to the server.";
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::uploadFinished, this, &PropagateUploadEncrypted::slotUploadMetadataFinished);
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::uploadFinished, this, &PropagateUploadEncrypted::slotUploadMetadataFinished);
     _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
 }
 

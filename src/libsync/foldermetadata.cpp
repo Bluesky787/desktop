@@ -13,7 +13,7 @@
  */
 
 #include "account.h"
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include "foldermetadata.h"
 #include "clientsideencryption.h"
 #include "clientsideencryptionjobs.h"
@@ -900,10 +900,10 @@ const QByteArray &FolderMetadata::fileDrop() const
 
 void FolderMetadata::startFetchRootE2eeFolderMetadata(const QString &path)
 {
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, path, nullptr, "/"));
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_account, path, nullptr, "/"));
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
-            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &FolderMetadata::slotRootE2eeFolderMetadataReceived);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(RootEncryptedFolderInfo::makeDefault() , true);

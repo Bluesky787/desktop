@@ -12,7 +12,7 @@
 class QJsonDocument;
 
 namespace OCC {
-class FetchAndUploadE2eeFolderMetadataJob;
+class EncryptedFolderMetadataHandler;
 class PropagateDownloadEncrypted : public QObject {
   Q_OBJECT
 public:
@@ -40,7 +40,7 @@ private:
   QString _remoteParentPath;
   QString _parentPathInDb;
   // TODO: Create a base class with this member in 'protected' and virtual slots for fetch/upload, then refactor this and other similar classes to inherit the base class
-  QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+  QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

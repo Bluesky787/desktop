@@ -15,7 +15,7 @@
 #pragma once
 
 #include "accountfwd.h"
-#include "fetchanduploade2eefoldermetadatajob.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderUsersMetadataJob
+#include "encryptedfoldermetadatahandler.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderUsersMetadataJob
 #include "gui/sharemanager.h"
 #include "syncfileitem.h"
 #include "gui/sharee.h"
@@ -108,7 +108,7 @@ private:
     UserData _userData; // share info, etc.
     QHash<QString, SyncFileItemPtr> _subJobSyncItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
     QMutex _subJobSyncItemsMutex;
-    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

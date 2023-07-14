@@ -46,7 +46,7 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
 
     SyncJournalFileRecord rec;
     [[maybe_discard]] const auto result = _journalDb->getRootE2eFolderRecord(_path, &rec);
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, folderPath, _journalDb, rec.path()));
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_account, folderPath, _journalDb, rec.path()));
 
     connect(this, &UpdateE2eeFolderUsersMetadataJob::finished, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
 }
@@ -88,7 +88,7 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
     }
 
     const auto rootEncFolderInfo = RootEncryptedFolderInfo(RootEncryptedFolderInfo::createRootPath(folderPath, rec.path()), _metadataKeyForEncryption, _metadataKeyForDecryption, _keyChecksums);
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::fetchFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(rootEncFolderInfo, true);
 }
@@ -136,7 +136,7 @@ void UpdateE2eeFolderUsersMetadataJob::startUpdate()
         }
 
     }
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::uploadFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished);
     _fetchAndUploadE2eeFolderMetadataJob->setFolderToken(_folderToken);
     _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata(true);
@@ -204,7 +204,7 @@ void UpdateE2eeFolderUsersMetadataJob::scheduleSubJobs()
 void UpdateE2eeFolderUsersMetadataJob::unlockFolder(bool success)
 {
     qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Calling Unlock";
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &UpdateE2eeFolderUsersMetadataJob::slotFolderUnlocked);
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &UpdateE2eeFolderUsersMetadataJob::slotFolderUnlocked);
     _fetchAndUploadE2eeFolderMetadataJob->unlockFolder(success);
 }
 

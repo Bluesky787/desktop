@@ -17,7 +17,7 @@
 #include <QObject>
 #include <QString>
 #include <QNetworkReply>
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include "syncfileitem.h"
 
 namespace OCC {
@@ -71,7 +71,7 @@ protected:
     QString _fullFolderRemotePath;
 
 private:
-    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

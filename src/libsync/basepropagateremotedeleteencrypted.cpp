@@ -66,17 +66,17 @@ void BasePropagateRemoteDeleteEncrypted::fetchMetadataForPath(const QString &pat
         return;
     }
 
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(),
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_propagator->account(),
                                                                                        _fullFolderRemotePath,
                                                                                        _propagator->_journal,
                                                                                        rec.path()));
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
-            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &BasePropagateRemoteDeleteEncrypted::slotFetchMetadataJobFinished);
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
-            &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+            &EncryptedFolderMetadataHandler::uploadFinished,
             this,
             &BasePropagateRemoteDeleteEncrypted::slotUpdateMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata();
@@ -172,7 +172,7 @@ void BasePropagateRemoteDeleteEncrypted::unlockFolder(bool success)
 
     qCDebug(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Unlocking folder" << _fetchAndUploadE2eeFolderMetadataJob->folderId();
     
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, this, &BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished);
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished);
     _fetchAndUploadE2eeFolderMetadataJob->unlockFolder(success);
 }
 

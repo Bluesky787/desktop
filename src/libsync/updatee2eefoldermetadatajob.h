@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "fetchanduploade2eefoldermetadatajob.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderMetadataJob
+#include "encryptedfoldermetadatahandler.h" //NOTE: Forward declarion is not gonna work because of OWNCLOUDSYNC_EXPORT for UpdateE2eeFolderMetadataJob
 #include "owncloudpropagator.h"
 #include "syncfileitem.h"
 
@@ -26,7 +26,7 @@ namespace OCC {
 
 class FolderMetadata;
 
-class FetchAndUploadE2eeFolderMetadataJob;
+class EncryptedFolderMetadataHandler;
 
 class OWNCLOUDSYNC_EXPORT UpdateE2eeFolderMetadataJob : public PropagatorJob
 {
@@ -52,7 +52,7 @@ private:
     SyncFileItemPtr _item;
     QString _encryptedRemotePath;
 
-    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }

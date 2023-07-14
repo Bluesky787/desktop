@@ -47,9 +47,9 @@ void UpdateE2eeFolderMetadataJob::start()
         return;
     }
     _fetchAndUploadE2eeFolderMetadataJob.reset(
-            new FetchAndUploadE2eeFolderMetadataJob(propagator()->account(), _encryptedRemotePath, propagator()->_journal, rec.path()));
+            new EncryptedFolderMetadataHandler(propagator()->account(), _encryptedRemotePath, propagator()->_journal, rec.path()));
 
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::fetchFinished,
             this, &UpdateE2eeFolderMetadataJob::slotFetchMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
 }
@@ -97,7 +97,7 @@ void UpdateE2eeFolderMetadataJob::slotFetchMetadataJobFinished(int httpReturnCod
 
     emit fileDropMetadataParsedAndAdjusted(folderMetadata.data());
     _fetchAndUploadE2eeFolderMetadataJob->uploadMetadata();
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::uploadFinished,
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::uploadFinished,
             this, &UpdateE2eeFolderMetadataJob::slotUpdateMetadataFinished);
 }
 
@@ -142,7 +142,7 @@ void UpdateE2eeFolderMetadataJob::unlockFolder(bool success)
     }
 
     qCDebug(lcUpdateFileDropMetadataJob) << "Calling Unlock";
-    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &FetchAndUploadE2eeFolderMetadataJob::folderUnlocked, [this](const QByteArray &folderId, int httpStatus) {
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(), &EncryptedFolderMetadataHandler::folderUnlocked, [this](const QByteArray &folderId, int httpStatus) {
         qCWarning(lcUpdateFileDropMetadataJob) << "Unlock Error";
 
         if (httpStatus != 200) {

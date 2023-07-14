@@ -33,8 +33,8 @@ set(libsync_SRCS
     discoveryphase.cpp
     encryptfolderjob.h
     encryptfolderjob.cpp
-    fetchanduploade2eefoldermetadatajob.h
-    fetchanduploade2eefoldermetadatajob.cpp
+    encryptedfoldermetadatahandler.h
+    encryptedfoldermetadatahandler.cpp
     filesystem.h
     filesystem.cpp
     helpers.cpp

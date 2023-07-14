@@ -14,7 +14,7 @@
 #pragma once
 
 #include "account.h"
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include "syncfileitem.h"
 #include "owncloudpropagator.h"
 
@@ -68,6 +68,6 @@ private:
     QString _errorString;
     OwncloudPropagator *_propagator = nullptr;
     SyncFileItemPtr _item;
-    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
 };
 }

@@ -14,7 +14,7 @@
  */
 
 #include "accountfwd.h"
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include <csync.h>
 #include <rootencryptedfolderinfo.h>
 #include <QByteArray>
@@ -192,7 +192,7 @@ private:
 
     bool _isMetadataValid = false;
 
-    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
+    QScopedPointer<EncryptedFolderMetadataHandler> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 } // namespace OCC

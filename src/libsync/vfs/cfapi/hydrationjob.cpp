@@ -18,7 +18,7 @@
 #include "propagatedownload.h"
 #include "vfs/cfapi/vfs_cfapi.h"
 #include <clientsideencryptionjobs.h>
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include "foldermetadata.h"
 
 #include "filesystem.h"
@@ -348,9 +348,9 @@ void OCC::HydrationJob::handleNewConnectionForEncryptedFile()
         emitFinished(Error);
         return;
     }
-    _fetchAndUploadE2eeFolderMetadataJob.reset(new FetchAndUploadE2eeFolderMetadataJob(_account, _remoteParentPath, _journal, rec.path()));
+    _fetchAndUploadE2eeFolderMetadataJob.reset(new EncryptedFolderMetadataHandler(_account, _remoteParentPath, _journal, rec.path()));
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
-            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &HydrationJob::slotFetchMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata();

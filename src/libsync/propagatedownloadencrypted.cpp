@@ -1,6 +1,6 @@
 #include "propagatedownloadencrypted.h"
 #include "clientsideencryptionjobs.h"
-#include "fetchanduploade2eefoldermetadatajob.h"
+#include "encryptedfoldermetadatahandler.h"
 #include "foldermetadata.h"
 
 Q_LOGGING_CATEGORY(lcPropagateDownloadEncrypted, "nextcloud.sync.propagator.download.encrypted", QtInfoMsg)
@@ -42,10 +42,10 @@ void PropagateDownloadEncrypted::start()
         return;
     }
     _fetchAndUploadE2eeFolderMetadataJob.reset(
-        new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(), _remoteParentPath, _propagator->_journal, rec.path()));
+        new EncryptedFolderMetadataHandler(_propagator->account(), _remoteParentPath, _propagator->_journal, rec.path()));
 
     connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
-            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &PropagateDownloadEncrypted::slotFetchMetadataJobFinished);
     _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
