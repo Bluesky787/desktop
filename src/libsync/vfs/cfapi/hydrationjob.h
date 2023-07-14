@@ -21,6 +21,7 @@ class QLocalServer;
 class QLocalSocket;
 
 namespace OCC {
+class FetchAndUploadE2eeFolderMetadataJob;
 class GETFileJob;
 class SyncJournalDb;
 class VfsCfApi;
@@ -75,14 +76,11 @@ public:
     void cancel();
     void finalize(OCC::VfsCfApi *vfs);
 
-public slots:
-    void slotCheckFolderId(const QStringList &list);
-    void slotFolderIdError();
-    void slotCheckFolderEncryptedMetadata(const QJsonDocument &json);
-    void slotFolderEncryptedMetadataError(const QByteArray &fileId, int httpReturnCode);
-
 signals:
     void finished(HydrationJob *job);
+
+private slots:
+    void slotFetchMetadataJobFinished(int statusCode, const QString &message);
 
 private:
     void emitFinished(Status status);
@@ -115,6 +113,10 @@ private:
     GETFileJob *_job = nullptr;
     Status _status = Success;
     QString _remoteParentPath;
+
+    // TODO: Create a base class with this member in 'protected' and virtual slots for fetch/upload, then refactor this and other similar classes to inherit the
+    // base class
+    QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 } // namespace OCC

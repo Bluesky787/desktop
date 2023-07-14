@@ -70,6 +70,8 @@ private:
   QByteArray _generatedIv;
   QString _completeFileName;
   QString _remoteParentAbsolutePath;
+  // TODO: Create a base class with this member in 'protected' and virtual slots for fetch/upload, then refactor this and other similar classes to inherit the
+  // base class
   QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 

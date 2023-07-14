@@ -1,5 +1,6 @@
 #include "propagatedownloadencrypted.h"
 #include "clientsideencryptionjobs.h"
+#include "fetchanduploade2eefoldermetadatajob.h"
 #include "foldermetadata.h"
 
 Q_LOGGING_CATEGORY(lcPropagateDownloadEncrypted, "nextcloud.sync.propagator.download.encrypted", QtInfoMsg)
@@ -35,92 +36,50 @@ PropagateDownloadEncrypted::PropagateDownloadEncrypted(OwncloudPropagator *propa
 
 void PropagateDownloadEncrypted::start()
 {
-    // Is encrypted Now we need the folder-id
-    auto job = new LsColJob(_propagator->account(), _remoteParentPath, this);
-    job->setProperties({"resourcetype", "http://owncloud.org/ns:fileid"});
-    connect(job, &LsColJob::directoryListingSubfolders,
-            this, &PropagateDownloadEncrypted::checkFolderId);
-    connect(job, &LsColJob::finishedWithError,
-            this, &PropagateDownloadEncrypted::folderIdError);
-    job->start();
+    SyncJournalFileRecord rec;
+    if (!_propagator->_journal->getRootE2eFolderRecord(_remoteParentPath, &rec) || !rec.isValid()) {
+        emit failed();
+        return;
+    }
+    _fetchAndUploadE2eeFolderMetadataJob.reset(
+        new FetchAndUploadE2eeFolderMetadataJob(_propagator->account(), _remoteParentPath, _propagator->_journal, rec.path()));
+
+    connect(_fetchAndUploadE2eeFolderMetadataJob.data(),
+            &FetchAndUploadE2eeFolderMetadataJob::fetchFinished,
+            this,
+            &PropagateDownloadEncrypted::slotFetchMetadataJobFinished);
+    _fetchAndUploadE2eeFolderMetadataJob->fetchMetadata(true);
 }
 
-void PropagateDownloadEncrypted::folderIdError()
+void PropagateDownloadEncrypted::slotFetchMetadataJobFinished(int statusCode, const QString &message)
 {
-  qCDebug(lcPropagateDownloadEncrypted) << "Failed to get encrypted metadata of folder";
-}
+    if (statusCode != 200) {
+        qCCritical(lcPropagateDownloadEncrypted) << "Failed to find encrypted metadata information of remote file" << _info.fileName() << message;
+        emit failed();
+        return;
+    }
 
-void PropagateDownloadEncrypted::checkFolderId(const QStringList &list)
-{
-  auto job = qobject_cast<LsColJob*>(sender());
-  const QString folderId = list.first();
-  qCDebug(lcPropagateDownloadEncrypted) << "Received id of folder" << folderId;
+    qCDebug(lcPropagateDownloadEncrypted) << "Metadata Received reading" << _item->_instruction << _item->_file << _item->_encryptedFileName;
 
-  const ExtraFolderInfo &folderInfo = job->_folderInfos.value(folderId);
+    const auto metadata = _fetchAndUploadE2eeFolderMetadataJob->folderMetadata();
 
-  // Now that we have the folder-id we need it's JSON metadata
-  auto metadataJob = new GetMetadataApiJob(_propagator->account(), folderInfo.fileId);
-  connect(metadataJob, &GetMetadataApiJob::jsonReceived,
-          this, &PropagateDownloadEncrypted::checkFolderEncryptedMetadata);
-  connect(metadataJob, &GetMetadataApiJob::error,
-          this, &PropagateDownloadEncrypted::folderEncryptedMetadataError);
+    if (!metadata || !metadata->isValid()) {
+        emit failed();
+        qCCritical(lcPropagateDownloadEncrypted) << "Failed to find encrypted metadata information of remote file" << _info.fileName();
+    }
 
-  metadataJob->start();
-}
+    const auto files = metadata->files();
 
-void PropagateDownloadEncrypted::folderEncryptedMetadataError(const QByteArray & /*fileId*/, int /*httpReturnCode*/)
-{
-    qCCritical(lcPropagateDownloadEncrypted) << "Failed to find encrypted metadata information of remote file" << _info.fileName();
-    emit failed();
-}
+    const auto encryptedFilename = _item->_encryptedFileName.section(QLatin1Char('/'), -1);
+    for (const FolderMetadata::EncryptedFile &file : files) {
+        if (encryptedFilename == file.encryptedFilename) {
+            _encryptedInfo = file;
 
-void PropagateDownloadEncrypted::checkFolderEncryptedMetadata(const QJsonDocument &json)
-{
-  qCDebug(lcPropagateDownloadEncrypted) << "Metadata Received reading"
-                                        << _item->_instruction << _item->_file << _item->_encryptedFileName;
-
-  const auto job = qobject_cast<GetMetadataApiJob *>(sender());
-  Q_ASSERT(job);
-  if (!job) {
-      qCDebug(lcPropagateDownloadEncrypted) << "checkFolderEncryptedMetadata must be called from GetMetadataApiJob's signal";
-      emit failed();
-      return;
-  }
-
-  SyncJournalFileRecord rec;
-  if (!_propagator->_journal->getRootE2eFolderRecord(_parentPathInDb, &rec) || !rec.isValid()) {
-      emit failed();
-      return;
-  }
-
-  const auto metadata(QSharedPointer<FolderMetadata>::create(
-      _propagator->account(),
-      json.toJson(QJsonDocument::Compact),
-      FolderMetadata::RootEncryptedFolderInfo(FolderMetadata::RootEncryptedFolderInfo::createRootPath(_item->_file, rec.path())),
-      job->signature())
-  );
-
-  const auto filename = _info.fileName();
-  connect(metadata.data(), &FolderMetadata::setupComplete, this, [this, metadata, filename] {
-      if (metadata->isValid()) {
-          const QVector<FolderMetadata::EncryptedFile> files = metadata->files();
-
-          const QString encryptedFilename = _item->_encryptedFileName.section(QLatin1Char('/'), -1);
-          for (const FolderMetadata::EncryptedFile &file : files) {
-              if (encryptedFilename == file.encryptedFilename) {
-                  _encryptedInfo = file;
-
-                  qCDebug(lcPropagateDownloadEncrypted) << "Found matching encrypted metadata for file, starting download";
-                  emit fileMetadataFound();
-                  return;
-              }
-          }
-      }
-
-      emit failed();
-      qCCritical(lcPropagateDownloadEncrypted) << "Failed to find encrypted metadata information of remote file" << filename;
-  });
-
+            qCDebug(lcPropagateDownloadEncrypted) << "Found matching encrypted metadata for file, starting download";
+            emit fileMetadataFound();
+            return;
+        }
+    }
 }
 
 // TODO: Fix this. Exported in the wrong place.

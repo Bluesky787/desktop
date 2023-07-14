@@ -12,7 +12,7 @@
 class QJsonDocument;
 
 namespace OCC {
-
+class FetchAndUploadE2eeFolderMetadataJob;
 class PropagateDownloadEncrypted : public QObject {
   Q_OBJECT
 public:
@@ -21,11 +21,8 @@ public:
   bool decryptFile(QFile& tmpFile);
   [[nodiscard]] QString errorString() const;
 
-public slots:
-  void checkFolderId(const QStringList &list);
-  void checkFolderEncryptedMetadata(const QJsonDocument &json);
-  void folderIdError();
-  void folderEncryptedMetadataError(const QByteArray &fileId, int httpReturnCode);
+private slots:
+  void slotFetchMetadataJobFinished(int statusCode, const QString &message);
 
 signals:
   void fileMetadataFound();
@@ -42,6 +39,8 @@ private:
   QString _errorString;
   QString _remoteParentPath;
   QString _parentPathInDb;
+  // TODO: Create a base class with this member in 'protected' and virtual slots for fetch/upload, then refactor this and other similar classes to inherit the base class
+  QScopedPointer<FetchAndUploadE2eeFolderMetadataJob> _fetchAndUploadE2eeFolderMetadataJob;
 };
 
 }
