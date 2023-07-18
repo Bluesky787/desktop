@@ -317,25 +317,9 @@ bool PropagateItemJob::hasEncryptedAncestor() const
         return false;
     }
 
-    const auto path = _item->_file;
-    const auto slashPosition = path.lastIndexOf('/');
-    const auto parentPath = slashPosition >= 0 ? path.left(slashPosition) : QString();
-
-    auto pathComponents = parentPath.split('/');
-    while (!pathComponents.isEmpty()) {
-        SyncJournalFileRecord rec;
-        const auto pathCompontentsJointed = pathComponents.join('/');
-        if (!propagator()->_journal->getFileRecord(pathCompontentsJointed, &rec)) {
-            qCWarning(lcPropagator) << "could not get file from local DB" << pathCompontentsJointed;
-        }
-
-        if (rec.isValid() && rec.isE2eEncrypted()) {
-            return true;
-        }
-        pathComponents.removeLast();
-    }
-
-    return false;
+    SyncJournalFileRecord rec;
+    return propagator()->_journal->findEncryptedAncestorForRecord(_item->_file, &rec)
+        && rec.isValid() && rec.isE2eEncrypted();
 }
 
 // ================================================================================

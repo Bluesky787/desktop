@@ -1099,6 +1099,31 @@ bool SyncJournalDb::listAllE2eeFoldersWithEncryptionStatusLessThan(const int sta
     return true;
 }
 
+bool SyncJournalDb::findEncryptedAncestorForRecord(const QString &filename, SyncJournalFileRecord *rec)
+{
+    Q_ASSERT(rec);
+    rec->_path.clear();
+    Q_ASSERT(!rec->isValid());
+
+    const auto slashPosition = filename.lastIndexOf(QLatin1Char('/'));
+    const auto parentPath = slashPosition >= 0 ? filename.left(slashPosition) : QString();
+
+    auto pathComponents = parentPath.split(QLatin1Char('/'));
+    while (!pathComponents.isEmpty()) {
+        const auto pathCompontentsJointed = pathComponents.join(QLatin1Char('/'));
+        if (!getFileRecord(pathCompontentsJointed, rec)) {
+            qCDebug(lcDb) << "could not get file from local DB" << pathCompontentsJointed;
+            return false;
+        }
+
+        if (rec->isValid() && rec->isE2eEncrypted()) {
+            break;
+        }
+        pathComponents.removeLast();
+    }
+    return true;
+}
+
 void SyncJournalDb::keyValueStoreSet(const QString &key, QVariant value)
 {
     QMutexLocker locker(&_mutex);
