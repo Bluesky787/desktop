@@ -176,15 +176,6 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     }
     
     const auto metadataObj = metaDataDoc.object()[metadataJsonKey].toObject();
-
-    const auto counterVariantFromJson = metadataObj[counterKey].toVariant();
-    if (counterVariantFromJson.isValid() && counterVariantFromJson.canConvert<quint64>()) {
-        //TODO: We need to check counter: new counter must be greater than locally stored counter
-        // What does that mean? We store the counter in metadata, should we now store it in local database as we do for all file records in SyncJournal?
-        // What if metadata was not updated for a while? The counter will then not be greater than locally stored (in SyncJournal DB?)
-        _counter = counterVariantFromJson.value<quint64>();
-    }
-
     _metadataNonce = QByteArray::fromBase64(metadataObj[nonceKey].toString().toLocal8Bit());
     const auto cipherTextEncrypted = metadataObj[cipherTextKey].toString().toLocal8Bit();
     const auto cipherTextDecrypted = EncryptionHelper::decryptThenUnGzipData(metadataKeyForDecryption(), QByteArray::fromBase64(cipherTextEncrypted), _metadataNonce);
@@ -215,6 +206,14 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
 
     const auto files = cipherTextDocument.object()[filesKey].toObject();
     const auto folders = cipherTextDocument.object()[foldersKey].toObject();
+
+    const auto counterVariantFromJson = cipherTextDocument.object().value(counterKey).toVariant();
+    if (counterVariantFromJson.isValid() && counterVariantFromJson.canConvert<quint64>()) {
+        // TODO: We need to check counter: new counter must be greater than locally stored counter
+        // What does that mean? We store the counter in metadata, should we now store it in local database as we do for all file records in SyncJournal?
+        // What if metadata was not updated for a while? The counter will then not be greater than locally stored (in SyncJournal DB?)
+        _counter = counterVariantFromJson.value<quint64>();
+    }
 
     for (auto it = files.constBegin(), end = files.constEnd(); it != end; ++it) {
         const auto parsedEncryptedFile = parseEncryptedFileFromJson(it.key(), it.value());
@@ -580,7 +579,7 @@ QByteArray FolderMetadata::encryptedMetadata()
         }
     }
 
-    QJsonObject cipherText = {{filesKey, files}, {foldersKey, folders}};
+    QJsonObject cipherText = {{counterKey, QJsonValue::fromVariant(newCounter())}, {filesKey, files}, {foldersKey, folders}};
 
     const auto isChecksumsArrayValid = (!_isRootEncryptedFolder && keyChecksums.isEmpty()) || (_isRootEncryptedFolder && !keyChecksums.isEmpty());
     Q_ASSERT(isChecksumsArrayValid);
@@ -599,7 +598,6 @@ QByteArray FolderMetadata::encryptedMetadata()
     const auto encryptedCipherText = EncryptionHelper::gzipThenEncryptData(metadataKeyForEncryption(), cipherTextDoc.toJson(QJsonDocument::Compact), initializationVector, authenticationTag).toBase64();
     const QJsonObject metadata{{cipherTextKey, QJsonValue::fromVariant(encryptedCipherText)},
                                {nonceKey, QJsonValue::fromVariant(initializationVector.toBase64())},
-                               {counterKey, QJsonValue::fromVariant(newCounter())},
                                {authenticationTagKey, QJsonValue::fromVariant(authenticationTag.toBase64())}};
 
     QJsonObject metaObject = {{metadataJsonKey, metadata}, {versionKey, QString::number(_account->capabilities().clientSideEncryptionVersion(), 'g', 2)}};
