@@ -147,7 +147,7 @@ ColumnLayout {
         Layout.rightMargin: root.horizontalPadding
 
         visible: root.userGroupSharingPossible
-        enabled: visible && !root.loading
+        enabled: visible && !root.loading && !root.shareModel.isShareDisabledFolder
 
         accountState: root.accountState
         shareItemIsFolder: root.fileDetails && root.fileDetails.isFolder

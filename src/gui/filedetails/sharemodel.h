@@ -33,9 +33,9 @@ class ShareModel : public QAbstractListModel
     Q_PROPERTY(bool publicLinkSharesEnabled READ publicLinkSharesEnabled NOTIFY publicLinkSharesEnabledChanged)
     Q_PROPERTY(bool userGroupSharingEnabled READ userGroupSharingEnabled NOTIFY userGroupSharingEnabledChanged)
     Q_PROPERTY(bool canShare READ canShare NOTIFY sharePermissionsChanged)
+    Q_PROPERTY(bool isShareDisabledFolder READ isShareDisabledFolder NOTIFY isShareDisabledFolderChanged)
     Q_PROPERTY(bool fetchOngoing READ fetchOngoing NOTIFY fetchOngoingChanged)
     Q_PROPERTY(bool hasInitialShareFetchCompleted READ hasInitialShareFetchCompleted NOTIFY hasInitialShareFetchCompletedChanged)
-    Q_PROPERTY(bool serverAllowsResharing READ serverAllowsResharing NOTIFY serverAllowsResharingChanged)
     Q_PROPERTY(QVariantList sharees READ sharees NOTIFY shareesChanged)
 
 public:
@@ -63,7 +63,6 @@ public:
         IsSharePermissionsChangeInProgress,
         HideDownloadEnabledRole,
         IsHideDownloadEnabledChangeInProgress,
-        ResharingAllowedRole,
     };
     Q_ENUM(Roles)
 
@@ -117,7 +116,7 @@ public:
     [[nodiscard]] bool publicLinkSharesEnabled() const;
     [[nodiscard]] bool userGroupSharingEnabled() const;
     [[nodiscard]] bool canShare() const;
-    [[nodiscard]] bool serverAllowsResharing() const;
+    [[nodiscard]] bool isShareDisabledFolder() const;
 
     [[nodiscard]] bool fetchOngoing() const;
     [[nodiscard]] bool hasInitialShareFetchCompleted() const;
@@ -134,12 +133,12 @@ signals:
     void publicLinkSharesEnabledChanged();
     void userGroupSharingEnabledChanged();
     void sharePermissionsChanged();
+    void isShareDisabledFolderChanged();
     void lockExpireStringChanged();
     void fetchOngoingChanged();
     void hasInitialShareFetchCompletedChanged();
     void shareesChanged();
     void internalLinkReady();
-    void serverAllowsResharingChanged();
 
     void serverError(const int code, const QString &message) const;
     void passwordSetError(const QString &shareId, const int code, const QString &message);
@@ -227,6 +226,7 @@ private:
     bool _hasInitialShareFetchCompleted = false;
     bool _sharePermissionsChangeInProgress = false;
     bool _hideDownloadEnabledChangeInProgress = false;
+    bool _isShareDisabledFolder = false;
     SharePtr _placeholderLinkShare;
     SharePtr _internalLinkShare;
     SharePtr _secureFileDropPlaceholderLinkShare;

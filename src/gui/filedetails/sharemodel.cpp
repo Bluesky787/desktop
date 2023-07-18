@@ -23,7 +23,6 @@
 
 #include "account.h"
 #include "folderman.h"
-#include "sharepermissions.h"
 #include "theme.h"
 #include "updatee2eefolderusersmetadatajob.h"
 #include "wordlist.h"
@@ -81,7 +80,6 @@ QHash<int, QByteArray> ShareModel::roleNames() const
     roles[IsSharePermissionsChangeInProgress] = "isSharePermissionChangeInProgress";
     roles[HideDownloadEnabledRole] = "hideDownload";
     roles[IsHideDownloadEnabledChangeInProgress] = "isHideDownloadInProgress";
-    roles[ResharingAllowedRole] = "resharingAllowed";
 
     return roles;
 }
@@ -182,8 +180,6 @@ QVariant ShareModel::data(const QModelIndex &index, const int role) const
                 || (share->getShareType() == Share::TypeLink && _accountState->account()->capabilities().sharePublicLinkEnforcePassword()));
     case EditingAllowedRole:
         return share->getPermissions().testFlag(SharePermissionUpdate);
-    case ResharingAllowedRole:
-        return share->getPermissions().testFlag(SharePermissionShare);
 
     // Deal with roles that only return certain values for link or user/group share types
     case NoteEnabledRole:
@@ -275,6 +271,22 @@ void ShareModel::updateData()
         }
     } else {
         _sharedItemType = fileRecord.isE2eEncrypted() ? SharedItemType::SharedItemTypeEncryptedFile : SharedItemType::SharedItemTypeFile;
+    }
+
+    if (_sharedItemType == SharedItemType::SharedItemTypeEncryptedTopLevelFolder &&
+        fileRecord._e2eEncryptionStatus >= SyncJournalFileRecord::EncryptionStatus::EncryptedMigratedV2_0) {
+        int numFoldersInPath = 0;
+        const auto listFoldersInPathCallback = [&numFoldersInPath](const SyncJournalFileRecord &record) {
+            if (record.isValid() && record.isDirectory()) {
+                ++numFoldersInPath;
+            }
+        };
+        const bool listFoldersInPathSucceeded = _folder->journalDb()->listFilesInPath(fileRecord.path().toUtf8(), listFoldersInPathCallback);
+        const auto wasShareDisabledForFolder = _isShareDisabledFolder;
+        _isShareDisabledFolder = listFoldersInPathSucceeded && numFoldersInPath > 0;
+        if (_isShareDisabledFolder != wasShareDisabledForFolder) {
+            emit isShareDisabledFolderChanged();
+        }
     }
 
     // Will get added when shares are fetched if no link shares are fetched
@@ -1236,7 +1248,6 @@ void ShareModel::setAccountState(AccountState *accountState)
     Q_EMIT sharingEnabledChanged();
     Q_EMIT publicLinkSharesEnabledChanged();
     Q_EMIT userGroupSharingEnabledChanged();
-    Q_EMIT serverAllowsResharingChanged();
     updateData();
 }
 
@@ -1296,10 +1307,9 @@ bool ShareModel::canShare() const
     return _maxSharingPermissions & SharePermissionShare;
 }
 
-bool ShareModel::serverAllowsResharing() const
+bool ShareModel::isShareDisabledFolder() const
 {
-    return _accountState && _accountState->account() && _accountState->account()->capabilities().isValid()
-        && _accountState->account()->capabilities().shareResharing();
+    return _isShareDisabledFolder;
 }
 
 QVariantList ShareModel::sharees() const
