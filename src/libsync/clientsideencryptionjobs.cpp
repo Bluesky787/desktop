@@ -64,7 +64,9 @@ bool GetMetadataApiJob::finished()
         emit error(_fileId, retCode);
         return true;
     }
-    _signature = reply()->rawHeader(e2eeSignatureHeaderName);
+    if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
+        _signature = reply()->rawHeader(e2eeSignatureHeaderName);
+    }
     QJsonParseError error{};
     const auto replyData = reply()->readAll();
     auto json = QJsonDocument::fromJson(replyData, &error);
@@ -92,12 +94,18 @@ void StoreMetaDataApiJob::start()
     QNetworkRequest req;
     req.setRawHeader("OCS-APIREQUEST", "true");
     req.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-www-form-urlencoded"));
-    req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
-    if (!_signature.isEmpty()) {
-        req.setRawHeader(e2eeSignatureHeaderName, _signature);
+    if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
+        if (!_signature.isEmpty()) {
+            req.setRawHeader(e2eeSignatureHeaderName, _signature);
+        }
     }
     QUrlQuery query;
     query.addQueryItem(QLatin1String("format"), QLatin1String("json"));
+    if (_account->capabilities().clientSideEncryptionVersion() < 2.0) {
+        query.addQueryItem(QStringLiteral("e2e-token"), _token);
+    } else {
+        req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
+    }
     QUrl url = Utility::concatUrlPath(account()->url(), path());
     url.setQuery(query);
 
@@ -143,14 +151,21 @@ void UpdateMetadataApiJob::start()
     QNetworkRequest req;
     req.setRawHeader("OCS-APIREQUEST", "true");
     req.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-www-form-urlencoded"));
-    req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
 
-    if (!_signature.isEmpty()) {
-        req.setRawHeader(e2eeSignatureHeaderName, _signature);
+    if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
+        if (!_signature.isEmpty()) {
+            req.setRawHeader(e2eeSignatureHeaderName, _signature);
+        }
     }
 
     QUrlQuery urlQuery;
     urlQuery.addQueryItem(QStringLiteral("format"), QStringLiteral("json"));
+
+    if (_account->capabilities().clientSideEncryptionVersion() < 2.0) {
+        urlQuery.addQueryItem(QStringLiteral("e2e-token"), _token);
+    } else {
+        req.setRawHeader(QByteArrayLiteral("e2e-token"), _token);
+    }
 
     QUrl url = Utility::concatUrlPath(account()->url(), path());
     url.setQuery(urlQuery);
@@ -311,8 +326,10 @@ void LockEncryptFolderApiJob::start()
 
     QNetworkRequest req;
     req.setRawHeader("OCS-APIREQUEST", "true");
-    if (_counter > 0) {
-        req.setRawHeader("X-NC-E2EE-COUNTER", QByteArray::number(_counter));
+    if (_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
+        if (_counter > 0) {
+            req.setRawHeader("X-NC-E2EE-COUNTER", QByteArray::number(_counter));
+        }
     }
     QUrlQuery query;
     query.addQueryItem(QLatin1String("format"), QLatin1String("json"));

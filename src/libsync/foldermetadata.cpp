@@ -56,6 +56,11 @@ QString metadataStringFromOCsDocument(const QJsonDocument &ocsDoc)
 }
 }
 
+bool FolderMetadata::EncryptedFile::isDirectory() const
+{
+    return mimetype.isEmpty() || mimetype == QByteArrayLiteral("inode/directory") || mimetype == QByteArrayLiteral("httpd/unix-directory");
+}
+
 FolderMetadata::FolderMetadata(AccountPtr account)
     : _account(account),
     _isRootEncryptedFolder(false)
@@ -855,7 +860,15 @@ bool FolderMetadata::isRootEncryptedFolder() const
 
 bool FolderMetadata::encryptedMetadataNeedUpdate() const
 {
-    return latestSupportedMetadataVersion() > _existingMetadataVersion;
+    // TODO: For now we do not migrated to V2 if a folder has subfolders, remove the following code and only leave "return latestSupportedMetadataVersion() > _existingMetadataVersion;"
+    if (latestSupportedMetadataVersion() <= _existingMetadataVersion || latestSupportedMetadataVersion() >= MetadataVersion::Version2_0) {
+        return false;
+    }
+
+    const auto foundNestedFoldersOrIsNestedFolder = !_isRootEncryptedFolder
+        || std::find_if(std::cbegin(_files), std::cend(_files), [](const auto &file) { return file.isDirectory(); }) != std::cend(_files);
+
+    return !foundNestedFoldersOrIsNestedFolder;
 }
 
 bool FolderMetadata::moveFromFileDropToFiles()

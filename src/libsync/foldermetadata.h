@@ -57,6 +57,7 @@ public:
         QByteArray authenticationTag;
         QString encryptedFilename;
         QString originalFilename;
+        bool isDirectory() const;
     };
 
     FolderMetadata(AccountPtr account);
