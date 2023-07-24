@@ -1546,6 +1546,7 @@ void FolderMan::leaveShare(const QString &localFile)
                                                                                  folder->journalDb(),
                                                                                  folder->remotePath(),
                                                                                  UpdateE2eeFolderUsersMetadataJob::Remove,
+                //TODO: Might need to add a slash to "filePathRelative" once the server is working
                                                                                  filePathRelative,
                                                                                  folder->accountState()->account()->davUser());
             removeE2eeShareJob->setParent(this);
