@@ -16,6 +16,7 @@
 #ifndef FOLDERMAN_H
 #define FOLDERMAN_H
 
+#include <QByteArray>
 #include <QObject>
 #include <QQueue>
 #include <QList>
@@ -38,6 +39,7 @@ class Application;
 class SyncResult;
 class SocketApi;
 class LockWatcher;
+class UpdateE2eeFolderUsersMetadataJob;
 
 /**
  * @brief The FolderMan class
@@ -326,7 +328,7 @@ private slots:
     void slotProcessFilesPushNotification(OCC::Account *account);
     void slotConnectToPushNotifications(OCC::Account *account);
 
-    void slotLeaveShare(const QString &localFile);
+    void slotLeaveShare(const QString &localFile, const QByteArray &folderToken = {});
 
 private:
     /** Adds a new folder, does not add it to the account settings and
@@ -393,6 +395,8 @@ private:
 
     QScopedPointer<SocketApi> _socketApi;
     NavigationPaneHelper _navigationPaneHelper;
+
+    QPointer<UpdateE2eeFolderUsersMetadataJob> _removeE2eeShareJob;
 
     bool _appRestartRequired = false;
 

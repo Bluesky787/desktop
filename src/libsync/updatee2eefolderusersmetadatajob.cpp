@@ -47,12 +47,16 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
     SyncJournalFileRecord rec;
     [[maybe_discard]] const auto result = _journalDb->getRootE2eFolderRecord(_path, &rec);
     _encryptedFolderMetadataHandler.reset(new EncryptedFolderMetadataHandler(_account, folderPath, _journalDb, rec.path()));
-
-    connect(this, &UpdateE2eeFolderUsersMetadataJob::finished, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
 }
 
-void UpdateE2eeFolderUsersMetadataJob::start()
+void UpdateE2eeFolderUsersMetadataJob::start(const bool keepLock)
 {
+    if (keepLock) {
+        connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
+    } else {
+        connect(this, &UpdateE2eeFolderUsersMetadataJob::slotFolderUnlocked, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
+    }
+    _keepLock = keepLock;
     if (_operation != Operation::Add && _operation != Operation::Remove && _operation != Operation::ReEncrypt) {
         emit finished(-1, tr("Error updating metadata for a folder %1").arg(_path));
         return;
@@ -162,7 +166,11 @@ void UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished(int code, cons
         qCDebug(lcUpdateE2eeFolderUsersMetadataJob) << "Trying to schedule more jobs.";
         scheduleSubJobs();
         if (_subJobs.isEmpty()) {
-            unlockFolder(true);
+            if (_keepLock) {
+                emit finished(200);
+            } else {
+                unlockFolder(true);
+            }
         } else {
             _subJobs.values().last()->start();
         }
@@ -210,6 +218,10 @@ void UpdateE2eeFolderUsersMetadataJob::unlockFolder(bool success)
 
 void UpdateE2eeFolderUsersMetadataJob::slotFolderUnlocked(const QByteArray &folderId, int httpStatus)
 {
+    emit folderUnlocked();
+    if (_keepLock) {
+        return;
+    }
     const auto message = httpStatus != 200 ? tr("Failed to unlock a folder.") : QString{};
     emit finished(httpStatus, message);
 }
@@ -337,6 +349,11 @@ SyncFileItem::EncryptionStatus UpdateE2eeFolderUsersMetadataJob::encryptionStatu
     return !isMetadataValid
         ? EncryptionStatusEnums::ItemEncryptionStatus::NotEncrypted
         : folderMetadata->encryptedMetadataEncryptionStatus();
+}
+
+const QByteArray UpdateE2eeFolderUsersMetadataJob::folderToken() const
+{
+    return _encryptedFolderMetadataHandler->folderToken();
 }
 
 }

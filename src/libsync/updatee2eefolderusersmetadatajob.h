@@ -56,9 +56,12 @@ public:
     [[nodiscard]] const QString &path() const;
     [[nodiscard]] const UserData &userData() const;
     [[nodiscard]] SyncFileItem::EncryptionStatus encryptionStatus() const;
+    [[nodiscard]] const QByteArray folderToken() const;
+    
+    void unlockFolder(bool success);
 
 public slots:
-    void start();
+    void start(const bool keepLock = false);
     void setUserData(const UserData &userData);
 
     void setFolderToken(const QByteArray &folderToken);
@@ -69,7 +72,6 @@ public slots:
     void setSubJobSyncItems(const QHash<QString, SyncFileItemPtr> &subJobSyncItems);
 
 private:
-    void unlockFolder(bool success);
     void scheduleSubJobs();
     void startUpdate();
     void subJobsFinished(bool success);
@@ -89,6 +91,7 @@ private slots:
 private: signals:
     void certificateReady();
     void finished(int code, const QString &message = {});
+    void folderUnlocked();
 
 private:
     AccountPtr _account;
@@ -109,6 +112,7 @@ private:
     QHash<QString, SyncFileItemPtr> _subJobSyncItems; //used when migrating to update corresponding SyncFileItem(s) for nested folders, such that records in db will get updated when propagate item job is finalized
     QMutex _subJobSyncItemsMutex;
     QScopedPointer<EncryptedFolderMetadataHandler> _encryptedFolderMetadataHandler;
+    bool _keepLock = false;
 };
 
 }
