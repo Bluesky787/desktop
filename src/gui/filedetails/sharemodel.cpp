@@ -867,7 +867,8 @@ void ShareModel::slotDeleteE2EeShare(const SharePtr &share) const
                                                                          share->getShareWith()->shareWith());
     removeE2eeShareJob->setParent(_manager.data());
     removeE2eeShareJob->start();
-    connect(removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [share, this](int code, const QString &message) {
+    connect(removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [share, this, removeE2eeShareJob](int code, const QString &message) {
+        removeE2eeShareJob->deleteLater();
         if (code != 200) {
             qCWarning(lcShareModel) << "Could not remove share from E2EE folder's metadata!";
             emit serverError(code, message);

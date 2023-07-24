@@ -1550,7 +1550,8 @@ void FolderMan::leaveShare(const QString &localFile)
                                                                                  folder->accountState()->account()->davUser());
             removeE2eeShareJob->setParent(this);
             removeE2eeShareJob->start();
-            connect(removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [localFile, this](int code, const QString &message) {
+            connect(removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [localFile, this, removeE2eeShareJob](int code, const QString &message) {
+                removeE2eeShareJob->deleteLater();
                 if (code != 200) {
                     qCWarning(lcFolderMan) << "Could not remove share from E2EE folder's metadata!";
                     return;
