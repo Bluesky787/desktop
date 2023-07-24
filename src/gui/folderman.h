@@ -326,6 +326,8 @@ private slots:
     void slotProcessFilesPushNotification(OCC::Account *account);
     void slotConnectToPushNotifications(OCC::Account *account);
 
+    void slotLeaveShare(const QString &localFile);
+
 private:
     /** Adds a new folder, does not add it to the account settings and
      *  does not set an account on the new folder.

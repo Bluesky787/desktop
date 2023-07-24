@@ -27,6 +27,7 @@
 #include "gui/systray.h"
 #include <pushnotifications.h>
 #include <syncengine.h>
+#include "updatee2eefolderusersmetadatajob.h"
 
 #ifdef Q_OS_MAC
 #include <CoreServices/CoreServices.h>
@@ -1537,14 +1538,49 @@ void FolderMan::leaveShare(const QString &localFile)
     if (const auto folder = FolderMan::instance()->folderForPath(localFile)) {
         const auto filePathRelative = QString(localFile).remove(folder->path());
 
-        const auto leaveShareJob = new SimpleApiJob(folder->accountState()->account(), folder->accountState()->account()->davPath() + filePathRelative);
-        leaveShareJob->setVerb(SimpleApiJob::Verb::Delete);
-        connect(leaveShareJob, &SimpleApiJob::resultReceived, this, [this, folder](int statusCode) {
-            Q_UNUSED(statusCode)
-            scheduleFolder(folder);
-        });
-        leaveShareJob->start();
+        SyncJournalFileRecord rec;
+        if (folder->journalDb()->getFileRecord(filePathRelative, &rec)
+            && rec.isValid() && rec.isE2eEncrypted()) {
+
+            const auto removeE2eeShareJob = new UpdateE2eeFolderUsersMetadataJob(folder->accountState()->account(),
+                                                                                 folder->journalDb(),
+                                                                                 folder->remotePath(),
+                                                                                 UpdateE2eeFolderUsersMetadataJob::Remove,
+                                                                                 filePathRelative,
+                                                                                 folder->accountState()->account()->davUser());
+            removeE2eeShareJob->setParent(this);
+            removeE2eeShareJob->start();
+            connect(removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [localFile, this](int code, const QString &message) {
+                if (code != 200) {
+                    qCWarning(lcFolderMan) << "Could not remove share from E2EE folder's metadata!";
+                    return;
+                }
+                slotLeaveShare(localFile);
+            });
+
+            return;
+        }
+        slotLeaveShare(localFile);
     }
+}
+
+void FolderMan::slotLeaveShare(const QString &localFile)
+{
+    const auto folder = FolderMan::instance()->folderForPath(localFile);
+
+    if (!folder) {
+        qCWarning(lcFolderMan) << "Could not find a folder for localFile:" << localFile;
+        return;
+    }
+
+    const auto filePathRelative = QString(localFile).remove(folder->path());
+    const auto leaveShareJob = new SimpleApiJob(folder->accountState()->account(), folder->accountState()->account()->davPath() + filePathRelative);
+    leaveShareJob->setVerb(SimpleApiJob::Verb::Delete);
+    connect(leaveShareJob, &SimpleApiJob::resultReceived, this, [this, folder](int statusCode) {
+        Q_UNUSED(statusCode)
+        scheduleFolder(folder);
+    });
+    leaveShareJob->start();
 }
 
 void FolderMan::trayOverallStatus(const QList<Folder *> &folders,
