@@ -797,8 +797,8 @@ QByteArray FolderMetadata::prepareMetadataForSignature(const QJsonDocument &full
             auto folderUserObject = it->toObject();
             folderUserObject.remove(usersEncryptedFiledropKey);
             modofiedFolderUsers.push_back(folderUserObject);
-            modifiedObject.insert(usersKey, folderUserObject);
         }
+        modifiedObject.insert(usersKey, modofiedFolderUsers);
     }
 
     metdataModified.setObject(modifiedObject);
