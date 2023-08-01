@@ -133,10 +133,11 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
 
     if (_isRootEncryptedFolder && !_initialSignature.isEmpty()) {
         const auto metadataForSignature = prepareMetadataForSignature(metaDataDoc);
-        const auto metadataForSignatureBase64 = metadataForSignature.toBase64();
 
-        auto verifyResult = _account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignatureBase64);
-        verifyResult = false;
+        if (!_account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignature.toBase64())) {
+            qCDebug(lcCseMetadata()) << "Could not parse encrypred folder metadata. Failed to verify signature!";
+            return;
+        }
     }
 
     const auto fileDropObject = metaDataDoc.object().value(filedropKey).toObject();
@@ -640,7 +641,7 @@ QByteArray FolderMetadata::encryptedMetadata()
     QJsonDocument internalMetadata;
     internalMetadata.setObject(metaObject);
 
-    auto jsonString = internalMetadata.toJson();
+    const auto jsonString = internalMetadata.toJson();
 
     const auto metadataForSignature = prepareMetadataForSignature(internalMetadata);
     _metadataSignature = _account->e2e()->generateSignatureCMS(metadataForSignature.toBase64()).toBase64();

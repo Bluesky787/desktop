@@ -948,20 +948,10 @@ QByteArray ClientSideEncryption::generateSignatureCMS(const QByteArray &data) co
         return {};
     }
 
-    ClientSideEncryption::Bio cmsOut;
-    CMS_ContentInfo_print_ctx(cmsOut, contentInfo, 0, nullptr);
-
-    ClientSideEncryption::Bio cmsOut2;
-    [[maybe_unused]] const auto result = SMIME_write_CMS(cmsOut2, contentInfo, nullptr, CMS_DETACHED );
-
     ClientSideEncryption::Bio i2dCmsBioOut;
     [[maybe_unused]] auto resultI2dCms = i2d_CMS_bio(i2dCmsBioOut, contentInfo);
     const auto i2dCmsBio = BIO2ByteArray(i2dCmsBioOut);
 
-    ClientSideEncryption::Bio dataBioForVerification;
-    BIO_write(dataBioForVerification, data.constData(), data.size());
-
-    [[maybe_unused]] auto verifyResult = verifySignatureCMS(i2dCmsBio, data);
     return i2dCmsBio;
 }
 
