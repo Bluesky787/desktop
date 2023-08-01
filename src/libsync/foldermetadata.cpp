@@ -131,24 +131,7 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     const auto metaDataStr = metadataStringFromOCsDocument(doc);
     const auto metaDataDoc = QJsonDocument::fromJson(metaDataStr.toLocal8Bit());
 
-    if (_isRootEncryptedFolder && !_initialSignature.isEmpty()) {
-        const auto metadataForSignature = prepareMetadataForSignature(metaDataDoc);
-
-        if (!_account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignature.toBase64())) {
-            qCDebug(lcCseMetadata()) << "Could not parse encrypred folder metadata. Failed to verify signature!";
-            return;
-        }
-    }
-
-    const auto fileDropObject = metaDataDoc.object().value(filedropKey).toObject();
-    _fileDropCipherTextEncryptedAndBase64 = fileDropObject.value(cipherTextKey).toString().toLocal8Bit();
-    _fileDropMetadataAuthenticationTag = QByteArray::fromBase64(fileDropObject.value(authenticationTagKey).toString().toLocal8Bit());
-    _fileDropMetadataNonceBase64 = fileDropObject.value(nonceKey).toString().toLocal8Bit();
-
     const auto folderUsers = metaDataDoc[usersKey].toArray();
-    QJsonDocument debugHelper;
-    debugHelper.setArray(folderUsers);
-    qCDebug(lcCseMetadata()) << "users: " << debugHelper.toJson(QJsonDocument::Compact);
 
     const auto isUsersArrayValid = (!_isRootEncryptedFolder && folderUsers.isEmpty()) || (_isRootEncryptedFolder && !folderUsers.isEmpty());
     Q_ASSERT(isUsersArrayValid);
@@ -156,6 +139,12 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     if (!isUsersArrayValid) {
         qCDebug(lcCseMetadata()) << "Could not decrypt metadata key. Users array is invalid!";
         return;
+    }
+
+    if (_isRootEncryptedFolder) {
+        QJsonDocument debugHelper;
+        debugHelper.setArray(folderUsers);
+        qCDebug(lcCseMetadata()) << "users: " << debugHelper.toJson(QJsonDocument::Compact);
     }
 
     for (auto it = folderUsers.constBegin(); it != folderUsers.constEnd(); ++it) {
@@ -168,6 +157,26 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
         folderUser.encryptedFiledropKey = QByteArray::fromBase64(folderUserObject.value(usersEncryptedFiledropKey).toString().toUtf8());
         _folderUsers[userId] = folderUser;
     }
+
+    if (_isRootEncryptedFolder && !_initialSignature.isEmpty()) {
+        const auto metadataForSignature = prepareMetadataForSignature(metaDataDoc);
+
+        QVector<QByteArray> certificatePems;
+        certificatePems.reserve(_folderUsers.size());
+        for (const auto &folderUser : _folderUsers) {
+            certificatePems.push_back(folderUser.certificatePem);
+        }
+
+        if (!_account->e2e()->verifySignatureCMS(QByteArray::fromBase64(_initialSignature), metadataForSignature.toBase64(), certificatePems)) {
+            qCDebug(lcCseMetadata()) << "Could not parse encrypred folder metadata. Failed to verify signature!";
+            return;
+        }
+    }
+
+    const auto fileDropObject = metaDataDoc.object().value(filedropKey).toObject();
+    _fileDropCipherTextEncryptedAndBase64 = fileDropObject.value(cipherTextKey).toString().toLocal8Bit();
+    _fileDropMetadataAuthenticationTag = QByteArray::fromBase64(fileDropObject.value(authenticationTagKey).toString().toLocal8Bit());
+    _fileDropMetadataNonceBase64 = fileDropObject.value(nonceKey).toString().toLocal8Bit();
 
     if (_folderUsers.contains(_account->davUser())) {
         const auto currentFolderUser = _folderUsers.value(_account->davUser());
@@ -803,8 +812,7 @@ QByteArray FolderMetadata::prepareMetadataForSignature(const QJsonDocument &full
     }
 
     metdataModified.setObject(modifiedObject);
-    auto jsonString = metdataModified.toJson();
-    return metdataModified.toJson();
+    return metdataModified.toJson(QJsonDocument::Compact);
 }
 
 void FolderMetadata::addEncryptedFile(const EncryptedFile &f) {

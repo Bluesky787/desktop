@@ -256,7 +256,7 @@ signals:
 
 public:
     [[nodiscard]] QByteArray generateSignatureCMS(const QByteArray &data) const;
-    [[nodiscard]] bool verifySignatureCMS(const QByteArray &cmsContent, const QByteArray &data) const;
+    [[nodiscard]] bool verifySignatureCMS(const QByteArray &cmsContent, const QByteArray &data, const QVector<QByteArray> &certificatePems) const;
 
 public slots:
     void initialize(const OCC::AccountPtr &account);

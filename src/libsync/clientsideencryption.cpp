@@ -952,67 +952,56 @@ QByteArray ClientSideEncryption::generateSignatureCMS(const QByteArray &data) co
     [[maybe_unused]] auto resultI2dCms = i2d_CMS_bio(i2dCmsBioOut, contentInfo);
     const auto i2dCmsBio = BIO2ByteArray(i2dCmsBioOut);
 
+    CMS_ContentInfo_free(contentInfo);
+
     return i2dCmsBio;
 }
 
-bool ClientSideEncryption::verifySignatureCMS(const QByteArray &cmsContent, const QByteArray &data) const
+bool ClientSideEncryption::verifySignatureCMS(const QByteArray &cmsContent, const QByteArray &data, const QVector<QByteArray> &certificatePems) const
 {
     ClientSideEncryption::Bio cmsContentBio;
     BIO_write(cmsContentBio, cmsContent.constData(), cmsContent.size());
     const auto cmsDataFromBio = d2i_CMS_bio(cmsContentBio, nullptr);
-
     if (!cmsDataFromBio) {
         return false;
     }
 
-    ClientSideEncryption::Bio dataBio;
-    BIO_write(dataBio, data.constData(), data.size());
-
     ClientSideEncryption::Bio detachedData;
     BIO_write(detachedData, data.constData(), data.size());
 
-    auto verifyResult = CMS_verify(cmsDataFromBio, nullptr, nullptr, detachedData, nullptr, CMS_DETACHED | CMS_NO_SIGNER_CERT_VERIFY);
-
-    if (verifyResult) {
-        auto signers = CMS_get0_signers(cmsDataFromBio);
-
-        ClientSideEncryption::Bio publicKeyBio;
-        const auto publicKeyPem = _publicKey.toPem();
-        BIO_write(publicKeyBio, publicKeyPem.constData(), publicKeyPem.size());
-        const auto publicKey = ClientSideEncryption::PKey::readPublicKey(publicKeyBio);
-
-        int numSigners = sk_X509_num(signers);
-        for (int i = 0; i < numSigners; ++i) {
-            X509 *signer = sk_X509_value(signers, i);
-            if (X509_verify(signer, publicKey) != 0) {
-                verifyResult = false;
-                break;
-            }
-
-            auto subjectName = X509_get_subject_name(signer);
-            char subjectNameLine[256] = {};
-            X509_NAME_oneline(subjectName, subjectNameLine, 256);
-
-            auto subjectNameString = QString::fromAscii(subjectNameLine, 256);
-
-            auto subjectNameStringSplit = subjectNameString.split('/');
-
-            QString userId;
-
-            for (const auto &subjectNameStringPart : subjectNameStringSplit) {
-                if (subjectNameStringPart.startsWith("CN=")) {
-                    userId = subjectNameStringPart.split("=").last();
-                }
-            }
-        }
-
-        if (signers) {
-            sk_X509_free(signers);
-        }
-        signers = nullptr;
+    if (CMS_verify(cmsDataFromBio, nullptr, nullptr, detachedData, nullptr, CMS_DETACHED | CMS_NO_SIGNER_CERT_VERIFY) != 1) {
+        CMS_ContentInfo_free(cmsDataFromBio);
+        return false;
     }
 
-    return verifyResult > 0;
+    const auto signerInfos = CMS_get0_SignerInfos(cmsDataFromBio);
+
+    if (!signerInfos) {
+        CMS_ContentInfo_free(cmsDataFromBio);
+        return false;
+    }
+
+    const auto numSignerInfos = sk_CMS_SignerInfo_num(signerInfos);
+
+    for (const auto &certificatePem : certificatePems) {
+        Bio certificateBio;
+        BIO_write(certificateBio, certificatePem.constData(), certificatePem.size());
+        const auto x509Certificate = X509Certificate::readCertificate(certificateBio);
+
+        if (!x509Certificate) {
+            continue;
+        }
+
+        for (auto i = 0; i < numSignerInfos; ++i) {
+            const auto signerInfo = sk_CMS_SignerInfo_value(signerInfos, i);
+            if (CMS_SignerInfo_cert_cmp(signerInfo, x509Certificate) == 0) {
+                CMS_ContentInfo_free(cmsDataFromBio);
+                return true;
+            }
+        }
+    }
+    CMS_ContentInfo_free(cmsDataFromBio);
+    return false;
 }
 
 void ClientSideEncryption::publicKeyFetched(QKeychain::Job *incoming)
