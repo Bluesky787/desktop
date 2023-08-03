@@ -51,6 +51,7 @@ UpdateE2eeFolderUsersMetadataJob::UpdateE2eeFolderUsersMetadataJob(const Account
 
 void UpdateE2eeFolderUsersMetadataJob::start(const bool keepLock)
 {
+    qCWarning(lcUpdateE2eeFolderUsersMetadataJob) << "[DEBUG_LEAVE_SHARE]: UpdateE2eeFolderUsersMetadataJob::start";
     if (keepLock) {
         connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::folderUnlocked, this, &UpdateE2eeFolderUsersMetadataJob::deleteLater);
     } else {
