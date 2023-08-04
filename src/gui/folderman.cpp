@@ -1535,16 +1535,17 @@ void FolderMan::setDirtyNetworkLimits()
 
 void FolderMan::leaveShare(const QString &localFile)
 {
-    if (const auto folder = FolderMan::instance()->folderForPath(localFile)) {
-        const auto filePathRelative = QString(localFile).remove(folder->path());
+    const auto localFileNoTrailingSlash = localFile.endsWith('/') ? localFile.chopped(1) : localFile;
+    if (const auto folder = FolderMan::instance()->folderForPath(localFileNoTrailingSlash)) {
+        const auto filePathRelative = QString(localFileNoTrailingSlash).remove(folder->path());
 
         SyncJournalFileRecord rec;
         if (folder->journalDb()->getFileRecord(filePathRelative, &rec)
             && rec.isValid() && rec.isE2eEncrypted()) {
-            qCWarning(lcFolderMan) << "[DEBUG_LEAVE_SHARE]: Folder:" << localFile << "is encrypted!";
+            qCWarning(lcFolderMan) << "[DEBUG_LEAVE_SHARE]: Folder:" << localFileNoTrailingSlash << "is encrypted!";
 
             QMessageBox msgBox;
-            msgBox.setText(QString("Folder: %1 is encrypted! Going to LOCK and UPDATE metadata first!").arg(localFile));
+            msgBox.setText(QString("Folder: %1 is encrypted! Going to LOCK and UPDATE metadata first!").arg(localFileNoTrailingSlash));
             msgBox.exec();
 
             if (_removeE2eeShareJob) {
@@ -1560,25 +1561,25 @@ void FolderMan::leaveShare(const QString &localFile)
                                                                                  folder->accountState()->account()->davUser());
             _removeE2eeShareJob->setParent(this);
             _removeE2eeShareJob->start(true);
-            connect(_removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [localFile, this](int code, const QString &message) {
+            connect(_removeE2eeShareJob, &UpdateE2eeFolderUsersMetadataJob::finished, this, [localFileNoTrailingSlash, this](int code, const QString &message) {
                 qCWarning(lcFolderMan) << "[DEBUG_LEAVE_SHARE]: FolderMan::leaveShare callback code" << code;
                 if (code != 200) {
                     qCWarning(lcFolderMan) << "[DEBUG_LEAVE_SHARE]: Could not remove share from E2EE folder's metadata!";
                     return;
                 }
                 QMessageBox msgBox;
-                msgBox.setText(QString("UpdateE2eeFolderUsersMetadataJob finished with code %1 for folder %2").arg(code).arg(localFile));
+                msgBox.setText(QString("UpdateE2eeFolderUsersMetadataJob finished with code %1 for folder %2").arg(code).arg(localFileNoTrailingSlash));
                 msgBox.exec();
-                slotLeaveShare(localFile, _removeE2eeShareJob->folderToken());
+                slotLeaveShare(localFileNoTrailingSlash, _removeE2eeShareJob->folderToken());
             });
 
             return;
         }
-        qCWarning(lcFolderMan) << "[DEBUG_LEAVE_SHARE]: Folder:" << localFile << "is NOT encrypted!";
+        qCWarning(lcFolderMan) << "[DEBUG_LEAVE_SHARE]: Folder:" << localFileNoTrailingSlash << "is NOT encrypted!";
         QMessageBox msgBox;
-        msgBox.setText(QString("Folder: %1 is encrypted! Going to just DELETE it!").arg(localFile));
+        msgBox.setText(QString("Folder: %1 is encrypted! Going to just DELETE it!").arg(localFileNoTrailingSlash));
         msgBox.exec();
-        slotLeaveShare(localFile);
+        slotLeaveShare(localFileNoTrailingSlash);
     }
 }
 
