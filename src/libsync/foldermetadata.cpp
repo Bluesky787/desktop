@@ -152,6 +152,9 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
         const auto userId = folderUserObject.value(usersUserIdKey).toString();
         FolderUser folderUser;
         folderUser.userId = userId;
+        //TODO: Verify certificatePem against CA (server can verify if it has created this certificate or not)
+        // Additionally, does it make sense to store each certificatePem that has been successfuly verified? Is this secure?
+        // Can the attacker use outdated certificate as an attack vector?
         folderUser.certificatePem = folderUserObject.value(usersCertificateKey).toString().toUtf8();
         folderUser.encryptedMetadataKey = QByteArray::fromBase64(folderUserObject.value(usersEncryptedMetadataKey).toString().toUtf8());
         folderUser.encryptedFiledropKey = QByteArray::fromBase64(folderUserObject.value(usersEncryptedFiledropKey).toString().toUtf8());
