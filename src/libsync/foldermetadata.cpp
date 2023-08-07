@@ -320,8 +320,8 @@ void FolderMetadata::setupExistingMetadataLegacy(const QByteArray &metadata)
         file.encryptedFilename = it.key();
 
         const auto fileObj = it.value().toObject();
-        file.authenticationTag = QByteArray::fromBase64(fileObj["authenticationTag"].toString().toLocal8Bit());
-        file.initializationVector = QByteArray::fromBase64(fileObj["initializationVector"].toString().toLocal8Bit());
+        file.authenticationTag = QByteArray::fromBase64(fileObj[authenticationTagKey].toString().toLocal8Bit());
+        file.initializationVector = QByteArray::fromBase64(fileObj[initializationVectorKey].toString().toLocal8Bit());
 
         // Decrypt encrypted part
         const auto encryptedFile = fileObj[encryptedKey].toString().toLocal8Bit();
@@ -376,7 +376,7 @@ void FolderMetadata::setupVersionFromExistingMetadata(const QByteArray &metadata
         if (metadataVersionValue.type() == QJsonValue::Type::String) {
             versionStringFromMetadata = metadataObj[versionKey].toString();
         } else if (metadataVersionValue.type() == QJsonValue::Type::Double) {
-            versionStringFromMetadata = QString::number(metadataVersionValue.toDouble(), 'g', 2);
+            versionStringFromMetadata = QString::number(metadataVersionValue.toDouble(), 'f', 1);
         }
     }
     else if (metaDataDoc.object().contains(versionKey)) {
@@ -384,7 +384,7 @@ void FolderMetadata::setupVersionFromExistingMetadata(const QByteArray &metadata
         if (metadataVersionValue.type() == QVariant::Type::String) {
             versionStringFromMetadata = metadataVersionValue.toString();
         } else if (metadataVersionValue.type() == QVariant::Type::Double) {
-            versionStringFromMetadata = QString::number(metadataVersionValue.toDouble(), 'g', 2);
+            versionStringFromMetadata = QString::number(metadataVersionValue.toDouble(), 'f', 1);
         } else if (metadataVersionValue.type() == QVariant::Type::Int) {
             versionStringFromMetadata = QString::number(metadataVersionValue.toInt()) + QStringLiteral(".0");
         }
@@ -482,7 +482,11 @@ FolderMetadata::EncryptedFile FolderMetadata::parseEncryptedFileFromJson(const Q
     EncryptedFile file;
     file.encryptedFilename = encryptedFilename;
     file.authenticationTag = QByteArray::fromBase64(fileObj[authenticationTagKey].toString().toLocal8Bit());
-    file.initializationVector = QByteArray::fromBase64(fileObj[initializationVectorKey].toString().toLocal8Bit());
+    auto nonce = QByteArray::fromBase64(fileObj[initializationVectorKey].toString().toLocal8Bit());
+    if (nonce.isEmpty()) {
+        nonce = QByteArray::fromBase64(fileObj[nonceKey].toString().toLocal8Bit());
+    }
+    file.initializationVector = nonce;
     file.originalFilename = fileObj["filename"].toString();
     file.encryptionKey = QByteArray::fromBase64(fileObj["key"].toString().toLocal8Bit());
     file.mimetype = fileObj["mimetype"].toString().toLocal8Bit();
@@ -501,7 +505,10 @@ QJsonObject FolderMetadata::convertFileToJsonObject(const EncryptedFile *encrypt
     file.insert("key", QString(encryptedFile->encryptionKey.toBase64()));
     file.insert("filename", encryptedFile->originalFilename);
     file.insert("mimetype", QString(encryptedFile->mimetype));
-    file.insert(initializationVectorKey, QString(encryptedFile->initializationVector.toBase64()));
+    const auto nonceFinalKey = latestSupportedMetadataVersion() < MetadataVersion::Version2_0
+        ? initializationVectorKey
+        : nonceKey;
+    file.insert(nonceFinalKey, QString(encryptedFile->initializationVector.toBase64()));
     file.insert(authenticationTagKey, QString(encryptedFile->authenticationTag.toBase64()));
 
     return file;
@@ -618,7 +625,7 @@ QByteArray FolderMetadata::encryptedMetadata()
                                {nonceKey, QJsonValue::fromVariant(initializationVector.toBase64())},
                                {authenticationTagKey, QJsonValue::fromVariant(authenticationTag.toBase64())}};
 
-    QJsonObject metaObject = {{metadataJsonKey, metadata}, {versionKey, QString::number(_account->capabilities().clientSideEncryptionVersion(), 'g', 2)}};
+    QJsonObject metaObject = {{metadataJsonKey, metadata}, {versionKey, QString::number(_account->capabilities().clientSideEncryptionVersion(), 'f', 1)}};
 
     QJsonArray folderUsers;
     if (_isRootEncryptedFolder) {
@@ -675,7 +682,7 @@ QByteArray FolderMetadata::encryptedMetadataLegacy()
     // multiple toBase64() just to keep with the old (wrong way)
     const auto encryptedMetadataKey = encryptDataWithPublicKey(_metadataKeyForEncryption.toBase64().toBase64(), _account->e2e()->_publicKey).toBase64();
     const QJsonObject metadata{
-        {versionKey, QString::number(version, 'g', 2)},
+        {versionKey, QString::number(version, 'f', 1)},
         {metadataKeyKey, QJsonValue::fromVariant(encryptedMetadataKey)},
         {"checksum", QJsonValue::fromVariant(computeMetadataKeyChecksum(encryptedMetadataKey))},
     };
