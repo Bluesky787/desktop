@@ -165,7 +165,10 @@ void BasePropagateRemoteDeleteEncrypted::deleteRemoteItem(const QString &filenam
 
 void BasePropagateRemoteDeleteEncrypted::unlockFolder(bool success)
 {
-    if (!_encryptedFolderMetadataHandler->isFolderLocked()) {
+    if (!_encryptedFolderMetadataHandler) {
+        qCWarning(ABSTRACT_PROPAGATE_REMOVE_ENCRYPTED) << "Null _encryptedFolderMetadataHandler";
+    }
+    if (!_encryptedFolderMetadataHandler || !_encryptedFolderMetadataHandler->isFolderLocked()) {
         emit finished(true);
         return;
     }
