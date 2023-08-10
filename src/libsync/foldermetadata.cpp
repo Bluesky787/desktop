@@ -196,7 +196,11 @@ void FolderMetadata::setupExistingMetadata(const QByteArray &metadata)
     const auto metadataObj = metaDataDoc.object()[metadataJsonKey].toObject();
     _metadataNonce = QByteArray::fromBase64(metadataObj[nonceKey].toString().toLocal8Bit());
     const auto cipherTextEncrypted = metadataObj[cipherTextKey].toString().toLocal8Bit();
-    const auto cipherTextDecrypted = EncryptionHelper::decryptThenUnGzipData(metadataKeyForDecryption(), QByteArray::fromBase64(cipherTextEncrypted), _metadataNonce);
+
+    // for compatibility, the format is "cipheredpart|initializationVector", so we need to extract the "cipheredpart"
+    const auto cipherTextPartExtracted = cipherTextEncrypted.split('|').at(0);
+
+    const auto cipherTextDecrypted = EncryptionHelper::decryptThenUnGzipData(metadataKeyForDecryption(), QByteArray::fromBase64(cipherTextPartExtracted), _metadataNonce);
     if (cipherTextDecrypted.isEmpty()) {
         qCDebug(lcCseMetadata()) << "Could not decrypt cipher text!";
         return;
@@ -620,9 +624,12 @@ QByteArray FolderMetadata::encryptedMetadata()
 
     QByteArray authenticationTag;
     const auto initializationVector = EncryptionHelper::generateRandom(metadataKeySize);
-    const auto encryptedCipherText = EncryptionHelper::gzipThenEncryptData(metadataKeyForEncryption(), cipherTextDoc.toJson(QJsonDocument::Compact), initializationVector, authenticationTag).toBase64();
+    const auto initializationVectorBase64 = initializationVector.toBase64();
+    const auto gzippedThenEncryptData = EncryptionHelper::gzipThenEncryptData(metadataKeyForEncryption(), cipherTextDoc.toJson(QJsonDocument::Compact), initializationVector, authenticationTag).toBase64();
+    // backwards compatible with old versions ("ciphertext|initializationVector")
+    const auto encryptedCipherText = QByteArray(gzippedThenEncryptData + QByteArrayLiteral("|") + initializationVectorBase64);
     const QJsonObject metadata{{cipherTextKey, QJsonValue::fromVariant(encryptedCipherText)},
-                               {nonceKey, QJsonValue::fromVariant(initializationVector.toBase64())},
+                               {nonceKey, QJsonValue::fromVariant(initializationVectorBase64)},
                                {authenticationTagKey, QJsonValue::fromVariant(authenticationTag.toBase64())}};
 
     QJsonObject metaObject = {{metadataJsonKey, metadata}, {versionKey, QString::number(_account->capabilities().clientSideEncryptionVersion(), 'f', 1)}};
