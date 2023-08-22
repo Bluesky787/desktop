@@ -66,7 +66,7 @@ void PropagateUploadEncrypted::start()
 
     connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::fetchFinished,
         this, &PropagateUploadEncrypted::slotFetchMetadataJobFinished);
-    _encryptedFolderMetadataHandler->fetchMetadata(true);
+    _encryptedFolderMetadataHandler->fetchMetadata(EncryptedFolderMetadataHandler::FetchMode::AllowEmptyMetadata);
 }
 
 void PropagateUploadEncrypted::unlockFolder()
@@ -174,7 +174,7 @@ void PropagateUploadEncrypted::slotFetchMetadataJobFinished(int statusCode, cons
     qCDebug(lcPropagateUploadEncrypted) << "Metadata created, sending to the server.";
 
     connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::uploadFinished, this, &PropagateUploadEncrypted::slotUploadMetadataFinished);
-    _encryptedFolderMetadataHandler->uploadMetadata(true);
+    _encryptedFolderMetadataHandler->uploadMetadata(EncryptedFolderMetadataHandler::UploadMode::KeepLock);
 }
 
 void PropagateUploadEncrypted::slotUploadMetadataFinished(int statusCode, const QString &message)

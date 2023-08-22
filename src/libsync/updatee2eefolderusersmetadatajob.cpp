@@ -95,7 +95,7 @@ void UpdateE2eeFolderUsersMetadataJob::slotStartE2eeMetadataJobs()
     const auto rootEncFolderInfo = RootEncryptedFolderInfo(RootEncryptedFolderInfo::createRootPath(folderPath, rec.path()), _metadataKeyForEncryption, _metadataKeyForDecryption, _keyChecksums);
     connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::fetchFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished);
-    _encryptedFolderMetadataHandler->fetchMetadata(rootEncFolderInfo, true);
+    _encryptedFolderMetadataHandler->fetchMetadata(rootEncFolderInfo, EncryptedFolderMetadataHandler::FetchMode::AllowEmptyMetadata);
 }
 
 void UpdateE2eeFolderUsersMetadataJob::slotFetchMetadataJobFinished(int statusCode, const QString &message)
@@ -144,7 +144,7 @@ void UpdateE2eeFolderUsersMetadataJob::startUpdate()
     connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::uploadFinished,
             this, &UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished);
     _encryptedFolderMetadataHandler->setFolderToken(_folderToken);
-    _encryptedFolderMetadataHandler->uploadMetadata(true);
+    _encryptedFolderMetadataHandler->uploadMetadata(EncryptedFolderMetadataHandler::UploadMode::KeepLock);
 }
 
 void UpdateE2eeFolderUsersMetadataJob::slotUpdateMetadataFinished(int code, const QString &message)

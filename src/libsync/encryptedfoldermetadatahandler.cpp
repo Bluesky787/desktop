@@ -25,7 +25,7 @@
 
 namespace OCC {
 
-Q_LOGGING_CATEGORY(lcFetchAndUploadE2eeFolderMetadataJob, "nextcloud.sync.propagator.fetchanduploade2eefoldermetadatajob", QtInfoMsg)
+Q_LOGGING_CATEGORY(lcFetchAndUploadE2eeFolderMetadataJob, "nextcloud.sync.propagator.encryptedfoldermetadatahandler", QtInfoMsg)
 
 }
 
@@ -45,13 +45,13 @@ EncryptedFolderMetadataHandler::EncryptedFolderMetadataHandler(const AccountPtr 
         RootEncryptedFolderInfo::createRootPath(folderPath, pathForTopLevelFolder));
 }
 
-void EncryptedFolderMetadataHandler::fetchMetadata(bool allowEmptyMetadata)
+void EncryptedFolderMetadataHandler::fetchMetadata(const FetchMode fetchMode)
 {
-    _allowEmptyMetadata = allowEmptyMetadata;
+    _fetchMode = fetchMode;
     fetchFolderEncryptedId();
 }
 
-void EncryptedFolderMetadataHandler::fetchMetadata(const RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata)
+void EncryptedFolderMetadataHandler::fetchMetadata(const RootEncryptedFolderInfo &rootEncryptedFolderInfo, const FetchMode fetchMode)
 {
     _rootEncryptedFolderInfo = rootEncryptedFolderInfo;
     if (_rootEncryptedFolderInfo.path.isEmpty()) {
@@ -59,12 +59,12 @@ void EncryptedFolderMetadataHandler::fetchMetadata(const RootEncryptedFolderInfo
         emit fetchFinished(-1, tr("Error fetching metadata."));
         return;
     }
-    fetchMetadata(allowEmptyMetadata);
+    fetchMetadata(fetchMode);
 }
 
-void EncryptedFolderMetadataHandler::uploadMetadata(bool keepLock)
+void EncryptedFolderMetadataHandler::uploadMetadata(const UploadMode uploadMode)
 {
-    _keepLockedAfterUpdate = keepLock;
+    _uploadMode = uploadMode;
     if (!_folderToken.isEmpty()) {
         // use existing token
         startUploadMetadata();
@@ -163,7 +163,7 @@ void EncryptedFolderMetadataHandler::slotMetadataReceived(const QJsonDocument &j
         return;
     }
 
-    _allowEmptyMetadata = false;
+    _fetchMode = FetchMode::NonEmptyMetadata;
 
     if (statusCode != 200 && statusCode != 404) {
         // neither successfully fetched, nor a folder without a metadata, fail further logic
@@ -189,7 +189,7 @@ void EncryptedFolderMetadataHandler::slotMetadataReceived(const QJsonDocument &j
 void EncryptedFolderMetadataHandler::slotMetadataReceivedError(const QByteArray &folderId, int httpReturnCode)
 {
     Q_UNUSED(folderId);
-    if (_allowEmptyMetadata) {
+    if (_fetchMode == FetchMode::AllowEmptyMetadata) {
         qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Error Getting the encrypted metadata. Pretend we got empty metadata. In case when posting it for the first time.";
         _isNewMetadataCreated = true;
         slotMetadataReceived({}, httpReturnCode);
@@ -229,7 +229,7 @@ void EncryptedFolderMetadataHandler::unlockFolder(bool success)
         return;
     }
 
-    if (!_keepLockedAfterUpdate) {
+    if (_uploadMode == UploadMode::DoNotKeepLock) {
         if (success) {
             connect(this, &EncryptedFolderMetadataHandler::folderUnlocked, this, &EncryptedFolderMetadataHandler::slotEmitUploadSuccess);
         } else {
@@ -290,7 +290,7 @@ void EncryptedFolderMetadataHandler::slotUploadMetadataSuccess(const QByteArray 
 {
     Q_UNUSED(folderId);
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Uploading of the metadata success.";
-    if (_keepLockedAfterUpdate || !_isFolderLocked) {
+    if (_uploadMode == UploadMode::KeepLock || !_isFolderLocked) {
         slotEmitUploadSuccess();
         return;
     }
@@ -303,7 +303,7 @@ void EncryptedFolderMetadataHandler::slotUploadMetadataError(const QByteArray &f
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Update metadata error for folder" << folderId << "with error" << httpReturnCode;
     qCDebug(lcFetchAndUploadE2eeFolderMetadataJob) << "Unlocking the folder.";
     _uploadErrorCode = httpReturnCode;
-    if (_isFolderLocked && !_keepLockedAfterUpdate) {
+    if (_isFolderLocked && _uploadMode == UploadMode::DoNotKeepLock) {
         connect(this, &EncryptedFolderMetadataHandler::folderUnlocked, this, &EncryptedFolderMetadataHandler::slotEmitUploadError);
         unlockFolder(false);
         return;

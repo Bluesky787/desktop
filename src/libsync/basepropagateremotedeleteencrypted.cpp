@@ -84,7 +84,8 @@ void BasePropagateRemoteDeleteEncrypted::fetchMetadataForPath(const QString &pat
 
 void BasePropagateRemoteDeleteEncrypted::uploadMetadata(bool keepLock)
 {
-    _encryptedFolderMetadataHandler->uploadMetadata(keepLock);
+    _encryptedFolderMetadataHandler->uploadMetadata(keepLock ? EncryptedFolderMetadataHandler::UploadMode::KeepLock
+                                                             : EncryptedFolderMetadataHandler::UploadMode::DoNotKeepLock);
 }
 
 void BasePropagateRemoteDeleteEncrypted::slotFolderUnLockFinished(const QByteArray &folderId, int statusCode)

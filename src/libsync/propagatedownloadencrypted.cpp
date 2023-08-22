@@ -48,7 +48,7 @@ void PropagateDownloadEncrypted::start()
             &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &PropagateDownloadEncrypted::slotFetchMetadataJobFinished);
-    _encryptedFolderMetadataHandler->fetchMetadata(true);
+    _encryptedFolderMetadataHandler->fetchMetadata(EncryptedFolderMetadataHandler::FetchMode::AllowEmptyMetadata);
 }
 
 void PropagateDownloadEncrypted::slotFetchMetadataJobFinished(int statusCode, const QString &message)

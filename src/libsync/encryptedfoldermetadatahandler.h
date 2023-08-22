@@ -30,6 +30,16 @@ class OWNCLOUDSYNC_EXPORT EncryptedFolderMetadataHandler : public QObject
     Q_OBJECT
 
 public:
+    enum class FetchMode {
+        NonEmptyMetadata = 0,
+        AllowEmptyMetadata
+    };
+
+    enum class UploadMode {
+        DoNotKeepLock = 0,
+        KeepLock
+    };
+
     explicit EncryptedFolderMetadataHandler(const AccountPtr &account,
                                                  const QString &folderPath,
                                                  SyncJournalDb *const journalDb,
@@ -50,9 +60,9 @@ public:
     [[nodiscard]] const bool isUnlockRunning() const;
     [[nodiscard]] const bool isFolderLocked() const;
 
-    void fetchMetadata(const RootEncryptedFolderInfo &rootEncryptedFolderInfo, bool allowEmptyMetadata = false);
-    void fetchMetadata(bool allowEmptyMetadata = false);
-    void uploadMetadata(bool keepLock = false);
+    void fetchMetadata(const RootEncryptedFolderInfo &rootEncryptedFolderInfo, const FetchMode fetchMode = FetchMode::NonEmptyMetadata);
+    void fetchMetadata(const FetchMode fetchMode = FetchMode::NonEmptyMetadata);
+    void uploadMetadata(const UploadMode uploadMode = UploadMode::DoNotKeepLock);
     void unlockFolder(bool success = true);
 
 private:
@@ -96,11 +106,11 @@ private:
 
     int _uploadErrorCode = 200;
 
-    bool _allowEmptyMetadata = false;
+    FetchMode _fetchMode = FetchMode::NonEmptyMetadata;
     bool _isFolderLocked = false;
     bool _isUnlockRunning = false;
     bool _isNewMetadataCreated = false;
-    bool _keepLockedAfterUpdate = false;
+    UploadMode _uploadMode = UploadMode::DoNotKeepLock;
 };
 
 }

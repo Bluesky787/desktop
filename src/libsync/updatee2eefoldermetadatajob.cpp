@@ -51,7 +51,7 @@ void UpdateE2eeFolderMetadataJob::start()
 
     connect(_encryptedFolderMetadataHandler.data(), &EncryptedFolderMetadataHandler::fetchFinished,
             this, &UpdateE2eeFolderMetadataJob::slotFetchMetadataJobFinished);
-    _encryptedFolderMetadataHandler->fetchMetadata(true);
+    _encryptedFolderMetadataHandler->fetchMetadata(EncryptedFolderMetadataHandler::FetchMode::AllowEmptyMetadata);
 }
 
 bool UpdateE2eeFolderMetadataJob::scheduleSelfOrChild()

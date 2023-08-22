@@ -943,7 +943,7 @@ void FolderMetadata::startFetchRootE2eeFolderMetadata(const QString &path)
             &EncryptedFolderMetadataHandler::fetchFinished,
             this,
             &FolderMetadata::slotRootE2eeFolderMetadataReceived);
-    _encryptedFolderMetadataHandler->fetchMetadata(RootEncryptedFolderInfo::makeDefault() , true);
+    _encryptedFolderMetadataHandler->fetchMetadata(RootEncryptedFolderInfo::makeDefault(), EncryptedFolderMetadataHandler::FetchMode::AllowEmptyMetadata);
 }
 
 void FolderMetadata::slotRootE2eeFolderMetadataReceived(int statusCode, const QString &message)
