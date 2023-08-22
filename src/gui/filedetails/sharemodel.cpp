@@ -23,6 +23,7 @@
 
 #include "account.h"
 #include "folderman.h"
+#include "sharepermissions.h"
 #include "theme.h"
 #include "updatee2eefolderusersmetadatajob.h"
 #include "wordlist.h"
@@ -80,6 +81,7 @@ QHash<int, QByteArray> ShareModel::roleNames() const
     roles[IsSharePermissionsChangeInProgress] = "isSharePermissionChangeInProgress";
     roles[HideDownloadEnabledRole] = "hideDownload";
     roles[IsHideDownloadEnabledChangeInProgress] = "isHideDownloadInProgress";
+    roles[ResharingAllowedRole] = "resharingAllowed";
 
     return roles;
 }
@@ -180,6 +182,9 @@ QVariant ShareModel::data(const QModelIndex &index, const int role) const
                 || (share->getShareType() == Share::TypeLink && _accountState->account()->capabilities().sharePublicLinkEnforcePassword()));
     case EditingAllowedRole:
         return share->getPermissions().testFlag(SharePermissionUpdate);
+
+    case ResharingAllowedRole:
+        return share->getPermissions().testFlag(SharePermissionShare);
 
     // Deal with roles that only return certain values for link or user/group share types
     case NoteEnabledRole:
@@ -1248,6 +1253,7 @@ void ShareModel::setAccountState(AccountState *accountState)
     Q_EMIT sharingEnabledChanged();
     Q_EMIT publicLinkSharesEnabledChanged();
     Q_EMIT userGroupSharingEnabledChanged();
+    Q_EMIT serverAllowsResharingChanged();
     updateData();
 }
 
@@ -1305,6 +1311,12 @@ bool ShareModel::hasInitialShareFetchCompleted() const
 bool ShareModel::canShare() const
 {
     return _maxSharingPermissions & SharePermissionShare;
+}
+
+bool ShareModel::serverAllowsResharing() const
+{
+    return _accountState && _accountState->account() && _accountState->account()->capabilities().isValid()
+        && _accountState->account()->capabilities().shareResharing();
 }
 
 bool ShareModel::isShareDisabledFolder() const
