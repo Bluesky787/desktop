@@ -404,8 +404,6 @@ std::unique_ptr<PropagateUploadFileCommon> OwncloudPropagator::createUploadJob(S
 
     job->setDeleteExisting(deleteExisting);
 
-    removeFromBulkUploadBlackList(item->_file);
-
     return job;
 }
 

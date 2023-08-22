@@ -371,6 +371,9 @@ void BulkPropagatorJob::slotPutFinishedOneFile(const BulkUploadItem &singleFile,
 
     singleFile._item->_status = SyncFileItem::Success;
 
+    // upload succeeded, so remove from black list
+    propagator()->removeFromBulkUploadBlackList(singleFile._item->_file);
+
     // Check the file again post upload.
     // Two cases must be considered separately: If the upload is finished,
     // the file is on the server and has a changed ETag. In that case,
