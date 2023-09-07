@@ -1381,7 +1381,7 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
             item->_e2eEncryptionMaximumAvailableStatus = EncryptionStatusEnums::fromEndToEndEncryptionApiVersion(_discoveryData->_account->capabilities().clientSideEncryptionVersion());
         }
         postProcessLocalNew();
-        if (item->isDirectory() && item->_instruction == CSYNC_INSTRUCTION_NEW && item->_direction == SyncFileItem::Up
+        /*if (item->isDirectory() && item->_instruction == CSYNC_INSTRUCTION_NEW && item->_direction == SyncFileItem::Up
             && _discoveryData->_account->capabilities().clientSideEncryptionVersion() >= 2.0) {
             OCC::SyncJournalFileRecord rec;
             _discoveryData->_statedb->findEncryptedAncestorForRecord(item->_file, &rec);
@@ -1392,7 +1392,7 @@ void ProcessDirectoryJob::processFileAnalyzeLocalInfo(
                 item->_status = SyncFileItem::NormalError;
                 item->_errorString = tr("Creating nested encrypted folders is not supported yet.");
             }
-        }
+        }*/
 
         finalize();
         return;

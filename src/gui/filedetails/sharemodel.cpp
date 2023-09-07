@@ -1321,7 +1321,7 @@ bool ShareModel::serverAllowsResharing() const
 
 bool ShareModel::isShareDisabledFolder() const
 {
-    return _isShareDisabledFolder;
+    return false;
 }
 
 QVariantList ShareModel::sharees() const
