@@ -279,15 +279,16 @@ void BulkPropagatorJob::checkPropagationIsDone()
             // just wait for the other job to finish.
             return;
         }
-
-        qCInfo(lcBulkPropagatorJob) << "final status" << _finalStatus;
-        emit finished(_finalStatus);
-        propagator()->scheduleNextJob();
     } else {
         if (handleBatchSize()) {
             scheduleSelfOrChild();
+            return;
         }
     }
+
+    qCInfo(lcBulkPropagatorJob) << "final status" << _finalStatus;
+    emit finished(_finalStatus);
+    propagator()->scheduleNextJob();
 }
 
 void BulkPropagatorJob::slotComputeTransmissionChecksum(SyncFileItemPtr item,
