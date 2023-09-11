@@ -1259,8 +1259,9 @@ void PropagatorCompositeJob::finalize()
 {
     // The propagator will do parallel scheduling and this could be posted
     // multiple times on the event loop, ignore the duplicate calls.
-    if (_state == Finished)
+    if (_state == Finished) {
         return;
+    }
 
     _state = Finished;
     emit finished(_hasError == SyncFileItem::NoStatus ? SyncFileItem::Success : _hasError);
