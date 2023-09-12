@@ -85,6 +85,10 @@ Logger::Logger(QObject *parent)
         Logger::instance()->doLog(type, ctx, message);
     });
 #endif
+#if defined(QT_DEBUG)
+    setLogDebug(true);
+    setLogFlush(true);
+#endif
 }
 
 Logger::~Logger()
