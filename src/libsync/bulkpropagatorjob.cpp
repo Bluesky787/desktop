@@ -113,7 +113,7 @@ bool BulkPropagatorJob::handleBatchSize()
     // no error, no batch size to change
     if (_finalStatus == SyncFileItem::Success || _finalStatus == SyncFileItem::NoStatus) {
         qCDebug(lcBulkPropagatorJob) << "No error, no need to change the bulk upload batch size!";
-        return false;
+        return true;
     }
 
     // change this value more times? or try only once?
@@ -127,7 +127,6 @@ bool BulkPropagatorJob::handleBatchSize()
 
     // try to upload with half of the batch size
     _currentBatchSize = halfBatchSize;
-
     qCDebug(lcBulkPropagatorJob) << "There was an error, sync again with bulk upload batch size cut to half!";
     return true;
 }
