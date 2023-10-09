@@ -15,7 +15,7 @@ with your computer.
 
 ### :hammer_and_wrench: How to compile the desktop client
 
-:building_construction: [System requirements](https://github.com/nextcloud/desktop/wiki/System-requirements-for-compiling-the-desktop-client) includes OpenSSL 1.1.x, QtKeychain, Qt 5.x.x and zlib.
+:building_construction: [System requirements](https://github.com/nextcloud/desktop/wiki/System-requirements-for-compiling-the-desktop-client) includes OpenSSL 3.x.x, QtKeychain, Qt 5.x.x and zlib.
 
 #### :memo: Step by step instructions
 
